@@ -184,3 +184,7 @@ test_output/
 *.bin
 src/macecho/tts/kokoro/*.onnx
 src/macecho/tts/kokoro/*.bin
+
+# Orb web page: dependencies and build output (scripts/build_app.sh rebuilds it)
+ui/node_modules/
+src/macecho/ui/

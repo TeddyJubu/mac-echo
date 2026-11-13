@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* The shadcn colour names the ElevenLabs UI components use. Chosen to read on a macOS window
+   background, where shadcn's own near-white border colour would disappear. */
+:root {
+  --border: oklch(0 0 0 / 18%);
+  --primary: oklch(0.25 0 0);
+  --muted: oklch(0 0 0 / 6%);
+}
+.dark {
+  --border: oklch(1 0 0 / 20%);
+  --primary: oklch(0.93 0 0);
+  --muted: oklch(1 0 0 / 8%);
+}
+@theme inline {
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-muted: var(--muted);
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}

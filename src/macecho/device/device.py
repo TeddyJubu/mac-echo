@@ -3,6 +3,7 @@ import sounddevice as sd
 import numpy as np
 import asyncio
 import logging
+import time
 from typing import AsyncIterator
 
 
@@ -12,6 +13,53 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger('Macecho.Device')
+
+# Calibration for level() and bands(): which loudness (dB below full scale) the UI shows as silent
+# and as full. Depends on the microphone and its gain; raise the floor if room noise moves the orb.
+LEVEL_FLOOR_DB = -50.0
+LEVEL_CEIL_DB = -12.0
+BANDS_HZ = (100.0, 4000.0)  # the range bands() splits up: where speech carries its energy
+
+
+def _unit(pcm: np.ndarray) -> np.ndarray:
+    """PCM samples as float32 in -1..1, whichever integer or float type they arrived in."""
+    samples = pcm.astype(np.float32)
+    return samples if pcm.dtype.kind == "f" else samples / np.iinfo(pcm.dtype).max
+
+
+def _scale(power):
+    """Mean-square power (1.0 is full scale) to 0..1, linear in decibels between floor and ceiling.
+
+    Decibels because hearing is logarithmic: on a plain amplitude scale normal speech would sit
+    near the bottom of the range.
+    """
+    db = 10 * np.log10(np.maximum(power, 1e-12))
+    return np.clip((db - LEVEL_FLOOR_DB) / (LEVEL_CEIL_DB - LEVEL_FLOOR_DB), 0.0, 1.0)
+
+
+def level(pcm: np.ndarray) -> float:
+    """Loudness of a PCM block as 0..1 for display."""
+    if pcm.size == 0:
+        return 0.0
+    return float(_scale(np.mean(_unit(pcm) ** 2)))
+
+
+def bands(pcm: np.ndarray, samplerate: int, count: int) -> list[float]:
+    """Loudness (0..1) of `count` frequency bands of a mono PCM block, low to high, for display.
+
+    The bands are equal steps in pitch across BANDS_HZ. Each is scaled as if the whole signal
+    were as loud as that band (its power times `count`), so the floor and ceiling mean the same
+    for a bar as they do for level().
+    """
+    if pcm.size < 2:
+        return [0.0] * count
+    samples = _unit(pcm)
+    window = np.hanning(samples.size)  # tapers the block's edges, which would otherwise smear every band
+    # Power per FFT bin, normalised so the bins of a steady signal add up to its mean-square power.
+    power = 2 * np.abs(np.fft.rfft(samples * window)) ** 2 / (samples.size * np.sum(window ** 2))
+    edges = np.searchsorted(np.fft.rfftfreq(samples.size, 1 / samplerate), np.geomspace(*BANDS_HZ, count + 1))
+    running = np.concatenate([[0.0], np.cumsum(power)])
+    return _scale((running[edges[1:]] - running[edges[:-1]]) * count).tolist()
 
 
 def list_devices():
@@ -154,6 +202,7 @@ class AudioPlayer:
 
         self.queue = asyncio.Queue(maxsize=100)  # 限制队列大小防止内存占用过大
         self.done = asyncio.Event()
+        self.playing = (b"", 0.0)  # the chunk being written to the speaker, and when that began
         self.stream = None
         self.is_running = False
         self.logger = logging.getLogger('Macecho.Device.Player')
@@ -206,6 +255,7 @@ class AudioPlayer:
                             try:
                                 # Blocking write runs off the event loop: inline, it froze the
                                 # loop (mic/VAD, task results) for the length of every chunk.
+                                self.playing = (data, time.monotonic())
                                 await asyncio.to_thread(self.stream.write, data)
                             except Exception as e:
                                 self.logger.error(f'写入音频数据错误: {e}')
@@ -223,6 +273,20 @@ class AudioPlayer:
         finally:
             await self.stop()
             self.logger.info('播放已停止')
+
+    def now_playing(self) -> np.ndarray:
+        """The 50 ms of samples leaving the speaker now; empty once the last chunk has played.
+
+        A chunk can be seconds long, so this picks the part of it that is due at this moment:
+        the blocking write hands samples over at playback speed, so time since it began is the
+        position. It leads the sound by the output latency, which is too small to see.
+        """
+        # ponytail: interleaved when channels > 1, and the meters read it as mono (the default);
+        # average the channels here if stereo output is ever configured.
+        data, began = self.playing
+        samples = np.frombuffer(data, dtype=self.dtype)
+        at = int((time.monotonic() - began) * self.samplerate) * self.channels
+        return samples[at:at + self.samplerate // 20 * self.channels]
 
     async def stop(self):
         """停止播放"""

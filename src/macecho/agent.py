@@ -34,6 +34,7 @@ class Agent:
         self.vad = None
         self.audio_player = None
         self.audio_recorder = None
+        self.last_input = np.zeros(0, np.int16)  # newest microphone block, for the UI's level meter
 
         # Initialize LLM Sentencizer for streaming sentence processing
         self.sentencizer = LLMSentencizer(
@@ -212,6 +213,7 @@ class Agent:
             # 1. 将字节数据转换为numpy数组
             audio_array = np.frombuffer(
                 audio_data, dtype=self.config.audio_recording.numpy_dtype)
+            self.last_input = audio_array
 
             # 2. 将数据添加到缓冲区
             self.audio_buffer.extend(audio_array)
