@@ -104,7 +104,11 @@ class VadProcessor(VADInterface):
                 )
 
             # 初始化 ONNX Runtime
-            self.session = ort.InferenceSession(model_path)
+            # One thread: the model is tiny, and ORT's default per-core pool spin-waits between
+            # frames (measured ~106% of a core while just listening, vs ~2.5% with one thread).
+            opts = ort.SessionOptions()
+            opts.intra_op_num_threads = opts.inter_op_num_threads = 1
+            self.session = ort.InferenceSession(model_path, sess_options=opts)
 
             # 检查模型输入输出规格
             self.input_names = [
