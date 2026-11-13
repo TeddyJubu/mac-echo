@@ -1,0 +1,56 @@
+{
+  "model": "LiquidAI/LFM3-Audio-2B-MLX-4bit",
+  "machine": "macOS-27.3-arm64-arm-64bit",
+  "python": "3.12.11",
+  "turns_measured": 12,
+  "headline": {
+    "startup_s": 2.519824375049211,
+    "cold_first_audio_s": 0.2714814170030877,
+    "first_audio_s": 0.323460145998979,
+    "perceived_latency_s": 0.931460145998979,
+    "underrun_ms": 0.0,
+    "rtf": 0.42393048795752186,
+    "memory_transcribe_s": 0.7118318749708124,
+    "frontend_cpu_pct": 0.42190340337886784,
+    "python_thread_cpu_pct": 57.66417514026614,
+    "peak_gpu_memory_gb": 1.814843119,
+    "peak_rss_gb": 1.720680448
+  },
+  "startup": {
+    "import_s": 1.2031192080467008,
+    "load_s": 1.3167051670025103
+  },
+  "frontend": {
+    "frame_ms": 0.1350090890812377,
+    "frame_onnx_ms": 0.0792600091236333,
+    "cpu_pct_of_realtime": 0.42190340337886784,
+    "segments_found": 5
+  },
+  "first_audio_stages_s": {
+    "prep": 0.004528104473138228,
+    "prefill": 0.11707320850109681,
+    "text": 0.0849932910350617,
+    "audio": 0.12962391751352698,
+    "decode": 0.0041686249896883965,
+    "glue": 0.0015133119886741042
+  },
+  "turn_stages_s": {
+    "prep": 0.004528104473138228,
+    "prefill": 0.11707320850109681,
+    "text": 0.17584281251765788,
+    "audio": 1.0780183955503162,
+    "decode": 0.067557936970843,
+    "glue": 0.01411585690220818
+  },
+  "turn": {
+    "total_s": 1.4241814790002536,
+    "audio_s": 3.28,
+    "ttfa_min_s": 0.2689811249729246,
+    "ttfa_max_s": 0.4262431659735739
+  },
+  "replies": [
+    "Capital in the 21st Century proposes a 4% global wealth tax.",
+    "Thanks! Have a great day!",
+    "You'd need to start from here, sonny."
+  ]
+}
