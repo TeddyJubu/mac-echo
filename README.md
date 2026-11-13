@@ -245,3 +245,13 @@ MacEcho builds upon excellent open-source projects:
 <p align="center">
   Made with ❤️ for the Mac community
 </p>
+## LFM3 end-to-end speech models (MLX)
+
+Set `speech_model` to replace the SenseVoice → Qwen → CosyVoice chain with a single Liquid AI model (Silero VAD still segments speech):
+
+```bash
+uv venv --python 3.12 .venv   # onnxruntime has no Python 3.15 wheel yet
+uv pip install --python .venv/bin/python "mlx-vlm>=0.7.11" mlx-audio soundfile sounddevice numpy pydantic pydantic-settings onnxruntime pyyaml python-dotenv
+echo 'MACECHO_SPEECH_MODEL=LiquidAI/LFM3-Audio-2B-MLX-4bit' >> .env   # or LiquidAI/LFM3-Omni-2B-MLX-8bit
+.venv/bin/python examples/agent_usage_example.py --mode=run
+```

@@ -9,14 +9,12 @@ from pathlib import Path
 from macecho.config import MacEchoConfig
 from macecho.device import device
 from macecho.device.device import AudioPlayer, AudioRecorder
-from macecho.llm import prompt
 from macecho.utils.queue import QueueIterator
 import numpy as np
 import collections
 
 from macecho.vad.vad import VadProcessor
 from macecho.vad.interface import VadState
-from macecho.asr.sencevoice.model import SenceVoiceASR
 from macecho.sentencizer import LLMSentencizer
 from macecho.message import (
     MessageType, MessagePriority,
@@ -25,7 +23,6 @@ from macecho.message import (
     create_tts_request, create_tts_response,
     create_status_message, create_error_message
 )
-from macecho.llm.factory import LLMFactory
 
 
 class Agent:
@@ -63,6 +60,29 @@ class Agent:
             model_path=config.vad.model_path
         )
         self.vad = VadProcessor(vad_config)
+
+        self.llm = None
+        self.speech = None
+        if config.speech_model:
+            # End-to-end LFM3 model replaces ASR + LLM + TTS (heavy legacy deps never imported)
+            from macecho.speech_model import SpeechModel
+            print(f"Loading speech model {config.speech_model}...")
+            self.speech = SpeechModel(config.speech_model)
+        else:
+            self._init_legacy_pipeline(config)
+
+        self._init_audio_io(config)
+
+    def _init_legacy_pipeline(self, config: MacEchoConfig):
+        try:
+            import funasr  # noqa: F401
+        except ImportError:
+            raise RuntimeError(
+                "No speech model set and the legacy pipeline (funasr) isn't installed. "
+                "Add MACECHO_SPEECH_MODEL=LiquidAI/LFM3-Audio-2B-MLX-4bit to .env") from None
+        from macecho.asr.sencevoice.model import SenceVoiceASR
+        from macecho.llm import prompt
+        from macecho.llm.factory import LLMFactory
 
         # Initialize ASR processor
         try:
@@ -104,6 +124,7 @@ class Agent:
             print(f"Warning: Failed to initialize TTS: {e}")
             self.tts = None
 
+    def _init_audio_io(self, config: MacEchoConfig):
         # Create debug audio output directory if in debug mode
         if config.debug:
             self.debug_audio_dir = Path("debug_audio")
@@ -260,6 +281,13 @@ class Agent:
                   f"({len(speech_segment)/self.config.audio_recording.sample_rate:.2f}s) "
                   f"[{correlation_id[:8]}]")
 
+            if self.speech:
+                # Tracked as current_llm_task so barge-in cancellation covers it
+                self.current_llm_task = asyncio.create_task(
+                    self._process_speech_model(speech_segment, correlation_id))
+                await self.current_llm_task
+                return
+
             # Step 1: ASR processing
             transcribed_text = await self._process_asr(speech_segment, correlation_id)
             if not transcribed_text.strip():
@@ -335,6 +363,25 @@ class Agent:
 
         except Exception as e:
             print(f"Error clearing audio queue: {e}")
+
+    async def _process_speech_model(self, speech_segment: np.ndarray, correlation_id: str):
+        """Speech in -> spoken reply out, in one LFM3 call."""
+        audio = speech_segment.astype(np.float32)
+        if speech_segment.dtype == np.int16:
+            audio /= 32768.0
+        start = time.time()
+        # ponytail: cancelling this task drops the reply, but the MLX thread runs to completion;
+        # stream_slots() chunks + a stop flag if barge-in latency matters
+        text, wav, sr = await asyncio.to_thread(self.speech.respond, audio)
+        print(f"🗣️  {text!r} ({len(wav)/sr:.1f}s audio in {time.time()-start:.1f}s)")
+        if sr != self.config.audio_player.sample_rate:
+            print(f"Warning: model outputs {sr} Hz but player is {self.config.audio_player.sample_rate} Hz")
+        if wav.size:
+            pcm = (np.clip(wav, -1.0, 1.0) * 32767).astype(np.int16).tobytes()
+            await self.audio_player_queue.put(pcm)
+            await self.message_queue.put(create_tts_response(pcm, time.time() - start, 1.0, correlation_id))
+        # Transcribe the user's turn for memory while the reply is already playing
+        await asyncio.to_thread(self.speech.remember, audio, text)
 
     async def _process_asr(self, speech_segment: np.ndarray, correlation_id: str) -> str:
         """Process ASR for speech segment"""

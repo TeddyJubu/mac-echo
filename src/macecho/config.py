@@ -287,6 +287,10 @@ class MacEchoConfig(BaseSettings):
     app_name: str = Field(default="MacEcho", description="Application name")
     version: str = Field(default="1.0.0", description="Application version")
     debug: bool = Field(default=False, description="Enable debug mode")
+    speech_model: Optional[str] = Field(
+        default=None,
+        description="End-to-end speech model repo (e.g. LiquidAI/LFM3-Audio-2B-MLX-4bit, "
+                    "LiquidAI/LFM3-Omni-2B-MLX-8bit). When set, replaces the ASR/LLM/TTS pipeline.")
 
     model_config = SettingsConfigDict(
         env_prefix="MACECHO_",

@@ -283,7 +283,7 @@ class VadProcessor(VADInterface):
             self._last_batch_size = batch_size
 
             # 获取语音概率
-            speech_prob = float(out[0])
+            speech_prob = float(np.ravel(out)[0])  # NumPy 2.x: float() rejects 1-elem arrays
 
             return speech_prob > self.config.threshold, speech_prob
 
