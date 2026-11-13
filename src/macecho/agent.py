@@ -27,7 +27,7 @@ from macecho.message import (
 
 
 class Agent:
-    def __init__(self, config: MacEchoConfig):
+    def __init__(self, config: MacEchoConfig, speech=None):
         self.config = config
         self.asr = None
         self.tts = None
@@ -63,8 +63,10 @@ class Agent:
         self.vad = VadProcessor(vad_config)
 
         self.llm = None
-        self.speech = None
-        if config.speech_model:
+        self.speech = speech  # preloaded SpeechModel (menu bar app reuses it across start/stop)
+        if speech is not None:
+            pass
+        elif config.speech_model:
             # End-to-end LFM3 model replaces ASR + LLM + TTS (heavy legacy deps never imported)
             from macecho.speech_model import SpeechModel
             print(f"Loading speech model {config.speech_model}...")

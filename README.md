@@ -251,7 +251,17 @@ Set `speech_model` to replace the SenseVoice → Qwen → CosyVoice chain with a
 
 ```bash
 uv venv --python 3.12 .venv   # onnxruntime has no Python 3.15 wheel yet
-uv pip install --python .venv/bin/python "mlx-vlm>=0.7.11" mlx-audio soundfile sounddevice numpy pydantic pydantic-settings onnxruntime pyyaml python-dotenv
+uv pip install --python .venv/bin/python "mlx-vlm>=0.7.11" mlx-audio soundfile sounddevice numpy pydantic pydantic-settings onnxruntime pyyaml python-dotenv rumps
 echo 'MACECHO_SPEECH_MODEL=LiquidAI/LFM3-Audio-2B-MLX-4bit' >> .env   # or LiquidAI/LFM3-Omni-2B-MLX-8bit
 .venv/bin/python examples/agent_usage_example.py --mode=run
 ```
+
+### Menu bar app
+
+```bash
+scripts/build_app.sh          # builds dist/MacEcho.app (runs from this checkout's .venv)
+open dist/MacEcho.app         # or double-click it; drag to /Applications to keep it
+```
+
+Menu bar icon: 🎙… loading model · 🎙 off · 🎙● listening · 🎙🔊 replying · 🎙⚠️ error (see Open Log).
+The menu has Start/Stop Listening, a Model picker (Audio-2B / Omni-2B), and Open Log (`~/Library/Logs/MacEcho.log`).
