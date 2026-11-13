@@ -44,6 +44,7 @@ BUDGET: dict[str, float] = {
     "underrun_ms": 0.0,           # playback must never run dry mid-reply
     "rtf": 0.5,                   # baseline 0.32; 1.0 is where playback stutters
     "startup_s": 3.0,             # 2.1 before; the load now includes a ~0.35 s warm-up reply
+    "listening_cpu_pct": 10.0,    # % of one core while waiting for speech: 2.5-3 now, 106 before
 }
 
 STAGES = {
@@ -94,18 +95,29 @@ def bench_frontend(config):
         segments.append(segment)
     agent._process_speech_segment = collect
 
-    async def feed():
-        step = config.audio_recording.chunk_size * 2  # int16 bytes per mic callback
-        for i in range(0, len(pcm), step):
+    step = config.audio_recording.chunk_size * 2  # int16 bytes per mic callback
+
+    async def feed(live_seconds=0.0):
+        """The whole file as fast as possible, or live_seconds of it paced like a live mic."""
+        period, t0, blocks = step / 2 / rate, now(), range(0, len(pcm), step)
+        for n, i in enumerate(blocks[:int(live_seconds / period)] if live_seconds else blocks, 1):
             await agent.process_audio(pcm[i:i + step])
+            if live_seconds:
+                await asyncio.sleep(max(0.0, t0 + n * period - now()))
 
     acc.clear()
     t = now()
     with contextlib.redirect_stdout(io.StringIO()):
         asyncio.run(feed())
-    total, frames = now() - t, len(pcm) // 2 // agent.frame_size
+    total, frames, found = now() - t, len(pcm) // 2 // agent.frame_size, list(segments)
+    # Paced, and counted across every thread: timing one thread in a tight loop reported 0.4%
+    # while ONNX Runtime's idle workers were spinning away 106% of a core between frames.
+    cpu, t = time.process_time(), now()
+    with contextlib.redirect_stdout(io.StringIO()):
+        asyncio.run(feed(live_seconds=5.0))
+    listening = 100 * (time.process_time() - cpu) / (now() - t)
     return {"frame_ms": 1000 * total / frames, "frame_onnx_ms": 1000 * acc["onnx"] / frames,
-            "cpu_pct_of_realtime": 100 * total / seconds, "segments_found": len(segments)}, segments
+            "listening_cpu_pct": listening, "segments_found": len(found)}, found
 
 
 def instrument(speech):
@@ -223,7 +235,7 @@ def main():
         "underrun_ms": 1000 * max(turn["underrun"] for turn, _ in turns),
         "rtf": median(turn["total"] / turn["audio_s"] for turn, _ in turns),
         "memory_transcribe_s": transcribe_s,
-        "frontend_cpu_pct": frontend["cpu_pct_of_realtime"],
+        "listening_cpu_pct": frontend["listening_cpu_pct"],
         "python_thread_cpu_pct": 100 * median(turn["cpu"] / turn["total"] for turn, _ in turns),
         "peak_gpu_memory_gb": mx.get_peak_memory() / 1e9,
         "peak_rss_gb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e9,
