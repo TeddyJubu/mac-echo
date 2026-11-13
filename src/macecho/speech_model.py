@@ -38,24 +38,72 @@ class SpeechModel:
         # ponytail: fixed window; summarise older turns if long chats lose the thread
         self.history = self.history[-self.max_history:]
 
-    def respond(self, audio: np.ndarray) -> tuple[str, np.ndarray, int]:
-        """Blocking. audio: mono float32 at 16 kHz. Returns (text, float32 waveform, sample_rate).
+    def stream(self, audio: np.ndarray, stop: threading.Event | None = None,
+               chunk_frames: int = 4, context_frames: int = 24, hold_frames: int = 1):
+        """Blocking generator. audio: mono float32 at 16 kHz.
 
-        Does not update history; call remember() afterwards (off the latency-critical path)."""
-        from mlx_vlm.generate.audio import generate_audio
+        Yields float32 24 kHz waveform chunks as speech is generated; the generator's return
+        value (StopIteration.value) is the reply text. Setting ``stop`` ends generation early.
+        Does not update history; call remember() afterwards (off the latency-critical path).
+
+        Each codec frame is 80 ms. Chunks are decoded with ``context_frames`` of look-back and
+        the newest ``hold_frames`` held until the next decode (their iSTFT overlap isn't final);
+        24/1 measured max |diff| 0.011 vs. decoding the whole reply at once.
+        """
+        import mlx.core as mx
+        from mlx_vlm.generate.common import generation_stream
         from mlx_vlm.prompt_utils import apply_chat_template
+        from mlx_vlm.utils import prepare_inputs, should_add_special_tokens
 
-        prompt = apply_chat_template(self.processor, self.model.config, self._build_messages(),
+        # LFM3-Audio and LFM3-Omni (a subclass) share one joint text+speech loop; without
+        # "interleaved" it starts in text mode and never speaks.
+        model, cfg = self.model, self.model.config
+        prompt = apply_chat_template(self.processor, cfg, self._build_messages(),
                                      num_audios=1, use_tts_template=True)
-        # LFM3-Audio (joint text+speech loop) defaults to text-only unless told to interleave;
-        # LFM3-Omni writes text then voices it, and would choke on this kwarg.
-        extra = {"generation_mode": "interleaved"} if getattr(self.model, "joint_audio_text_generation", False) else {}
-        with self._lock:
-            result = generate_audio(self.model, self.processor, prompt, audio=[audio],
-                                    max_tokens=self.max_tokens, temperature=0.0, **extra)
-        text = (result.text or "").strip()
-        wav = np.asarray(result.audio, dtype=np.float32) if result.audio is not None else np.zeros(0, np.float32)
-        return text, wav, result.sample_rate
+        inputs = prepare_inputs(self.processor, audio=[audio], prompts=prompt,
+                                add_special_tokens=should_add_special_tokens(cfg.model_type, self.processor))
+        input_ids = inputs.pop("input_ids")
+        inputs.pop("attention_mask", None)
+        codec = model.codec()
+        samples = codec.config.sampling_rate * 80 // 1000  # samples per codec frame
+
+        tokens, frames, emitted = [], [], 0
+
+        def decode_new() -> np.ndarray:
+            """Waveform from frame `emitted` onward, decoding all frames so far (held ones too)."""
+            start = max(0, emitted - context_frames)
+            wav = np.asarray(codec.decode(mx.stack(frames[start:], axis=-1)), dtype=np.float32)
+            return wav[(emitted - start) * samples:]
+
+        with self._lock, mx.stream(generation_stream):
+            for token, codes in model.stream_slots(
+                    input_ids, generation_mode="interleaved", max_tokens=self.max_tokens,
+                    temperature=0.0, **{**model.audio_sampling, **inputs}):
+                if stop is not None and stop.is_set():
+                    break
+                tokens.append(token)
+                if codes is None or codes[0].item() == cfg.audio_eos_code:
+                    continue
+                frames.append(codes)
+                ready = len(frames) - hold_frames
+                if ready - emitted >= chunk_frames:
+                    yield decode_new()[:(ready - emitted) * samples]
+                    emitted = ready
+            if frames and emitted < len(frames) and not (stop is not None and stop.is_set()):
+                yield decode_new()  # flush the tail, held frames included
+        text = self.processor.tokenizer.decode(
+            [t for t in tokens if t != cfg.audio_out_token_id], skip_special_tokens=True)
+        return text.strip()
+
+    def respond(self, audio: np.ndarray) -> tuple[str, np.ndarray, int]:
+        """Blocking, non-streaming convenience: (text, whole float32 waveform, sample_rate)."""
+        gen, chunks = self.stream(audio), []
+        while True:
+            try:
+                chunks.append(next(gen))
+            except StopIteration as done:
+                wav = np.concatenate(chunks) if chunks else np.zeros(0, np.float32)
+                return done.value or "", wav, self.model.codec().config.sampling_rate
 
     def transcribe(self, audio: np.ndarray) -> str:
         """Blocking. What the user said, as text, using the same model in ASR mode."""

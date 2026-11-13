@@ -204,8 +204,9 @@ class AudioPlayer:
                                 continue
 
                             try:
-                                # 直接写入数据到流
-                                self.stream.write(data)
+                                # Blocking write runs off the event loop: inline, it froze the
+                                # loop (mic/VAD, task results) for the length of every chunk.
+                                await asyncio.to_thread(self.stream.write, data)
                             except Exception as e:
                                 self.logger.error(f'写入音频数据错误: {e}')
                                 break

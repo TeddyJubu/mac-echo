@@ -15,10 +15,8 @@ class QueueIterator(AsyncIterator[T]):
         return self
 
     async def __anext__(self):
-        try:
-            item = await self.queue.get()
-            if item is None:  # 使用 None 作为结束标志
-                raise StopAsyncIteration
-            return item
-        finally:
-            self.queue.task_done()
+        item = await self.queue.get()  # if cancelled here, nothing was taken: no task_done()
+        self.queue.task_done()
+        if item is None:  # 使用 None 作为结束标志
+            raise StopAsyncIteration
+        return item

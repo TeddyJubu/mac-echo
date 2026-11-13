@@ -1,6 +1,7 @@
 # 定义一个agent类
 
 import asyncio
+import threading
 import time
 import os
 import wave
@@ -282,10 +283,10 @@ class Agent:
                   f"[{correlation_id[:8]}]")
 
             if self.speech:
-                # Tracked as current_llm_task so barge-in cancellation covers it
+                # Not awaited: the mic loop keeps running so VAD can hear a barge-in, and
+                # _cancel_ongoing_processing() cancels this via current_llm_task.
                 self.current_llm_task = asyncio.create_task(
                     self._process_speech_model(speech_segment, correlation_id))
-                await self.current_llm_task
                 return
 
             # Step 1: ASR processing
@@ -369,18 +370,34 @@ class Agent:
         audio = speech_segment.astype(np.float32)
         if speech_segment.dtype == np.int16:
             audio /= 32768.0
-        start = time.time()
-        # ponytail: cancelling this task drops the reply, but the MLX thread runs to completion;
-        # stream_slots() chunks + a stop flag if barge-in latency matters
-        text, wav, sr = await asyncio.to_thread(self.speech.respond, audio)
-        print(f"🗣️  {text!r} ({len(wav)/sr:.1f}s audio in {time.time()-start:.1f}s)")
-        if sr != self.config.audio_player.sample_rate:
-            print(f"Warning: model outputs {sr} Hz but player is {self.config.audio_player.sample_rate} Hz")
-        if wav.size:
-            pcm = (np.clip(wav, -1.0, 1.0) * 32767).astype(np.int16).tobytes()
-            await self.audio_player_queue.put(pcm)
-            await self.message_queue.put(create_tts_response(pcm, time.time() - start, 1.0, correlation_id))
-        # Transcribe the user's turn for memory while the reply is already playing
+        loop, stop, start = asyncio.get_running_loop(), threading.Event(), time.time()
+
+        def produce():
+            """Worker thread: push each speech chunk to the player as soon as it's decoded."""
+            gen, played = self.speech.stream(audio, stop), 0
+            while True:
+                try:
+                    chunk = next(gen)
+                except StopIteration as done:
+                    return done.value or "", played
+                if stop.is_set():
+                    continue  # barge-in: drop late chunks; the generator exits on its next step
+                if not played:
+                    print(f"🔊 first audio after {time.time() - start:.2f}s")
+                played += chunk.size
+                pcm = (np.clip(chunk, -1.0, 1.0) * 32767).astype(np.int16).tobytes()
+                loop.call_soon_threadsafe(self.audio_player_queue.put_nowait, pcm)
+
+        try:
+            text, played = await asyncio.to_thread(produce)
+        except asyncio.CancelledError:
+            stop.set()  # stops MLX generation within one step
+            raise
+        except Exception as e:  # background task: nobody else would report this
+            print(f"Speech model error: {e}")
+            return
+        print(f"🗣️  {text!r} ({played / 24000:.1f}s audio, done in {time.time() - start:.1f}s)")
+        # Transcribe the user's turn for memory while the reply is still playing
         await asyncio.to_thread(self.speech.remember, audio, text)
 
     async def _process_asr(self, speech_segment: np.ndarray, correlation_id: str) -> str:
