@@ -25,6 +25,18 @@ class SpeechModel:
         self.history: list[dict] = []  # prior turns as text messages
         self._lock = threading.Lock()  # one MLX generation at a time (reply vs. background transcript)
         self.model, self.processor = load(repo)
+        self._warm_up()
+
+    def _warm_up(self) -> None:
+        """One throwaway reply, so the first real turn doesn't pay for the lazy codec load and
+        first-use GPU setup."""
+        stop, limit = threading.Event(), self.max_tokens
+        self.max_tokens = 64  # bounded even if the model never speaks for silence
+        try:
+            for _ in self.stream(np.zeros(16000, np.float32), stop):
+                stop.set()  # the first speech chunk has exercised every stage
+        finally:
+            self.max_tokens = limit
 
     def _build_messages(self) -> list:
         """Messages for the next turn; the user's audio is attached as the final empty prompt."""
@@ -86,6 +98,8 @@ class SpeechModel:
                     continue
                 frames.append(codes)
                 ready = len(frames) - hold_frames
+                # A smaller first chunk was tried: 2 frames starts ~35 ms sooner, but on a busy
+                # machine the speaker ran dry before the second chunk in 4 of 30 replies.
                 if ready - emitted >= chunk_frames:
                     yield decode_new()[:(ready - emitted) * samples]
                     emitted = ready
