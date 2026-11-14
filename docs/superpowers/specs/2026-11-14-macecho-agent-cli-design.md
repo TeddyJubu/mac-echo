@@ -147,6 +147,11 @@ mode on 5 fixed sentences. It passes if:
 If it passes, the default is `lfm3`; otherwise the default is `system`. Either way,
 `MACECHO_VOICE` overrides the default. The result is recorded in this spec.
 
+**Result (2026-11-14): passed. The default is `lfm3`.** The test used system prompt `Perform TTS.`,
+a user message containing the text, and `generation_mode="audio"`. The worst sentence had 1 word
+error; one of the two counted errors was the transcriber writing "40" for "forty". Median first
+audio was 0.32 s (range 0.32–0.71 s). Generation ran at about real time.
+
 ### Configuration
 
 All settings are environment variables, read through the existing `MacEchoConfig` where it
@@ -155,7 +160,7 @@ applies.
 | Variable | Default | Meaning |
 |---|---|---|
 | `MACECHO_SPEECH_MODEL` | `LiquidAI/LFM3-Audio-2B-MLX-4bit` | Model repo. |
-| `MACECHO_VOICE` | set by the feasibility test | `lfm3` or `system`. |
+| `MACECHO_VOICE` | `lfm3` | `lfm3` or `system`. |
 | `MACECHO_IDLE_MINUTES` | `30` | Idle stop. `0` disables it. |
 | `MACECHO_NO_SKILL` | unset | `1` stops the skill from being installed automatically. |
 
