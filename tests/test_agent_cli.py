@@ -179,11 +179,14 @@ def test_a_daemon_that_dies_mid_request_is_retried_exactly_once(runtime, capsys,
     accepted = []
 
     def crash_on_every_request():
-        while len(accepted) < 3:
-            conn, _ = listener.accept()
-            accepted.append(conn)
-            conn.recv(65536)
-            conn.close()  # dies before replying
+        try:
+            while len(accepted) < 3:
+                conn, _ = listener.accept()
+                accepted.append(conn)
+                conn.recv(65536)
+                conn.close()  # dies before replying
+        except OSError:
+            pass  # the test closed the listener
 
     threading.Thread(target=crash_on_every_request, daemon=True).start()
     lock = open(protocol.lock_path(), "w")  # a live daemon holds the lock, so nothing respawns
@@ -200,3 +203,64 @@ def test_status_and_stop_never_start_a_daemon(runtime, capsys, monkeypatch):
     assert cli.main(["status"]) == 0
     assert json.loads(capsys.readouterr().out) == {"running": False}
     assert cli.main(["stop"]) == 0
+
+
+# --- listening ---------------------------------------------------------------------------------
+
+import wave
+from pathlib import Path
+
+import numpy as np
+
+from macecho.daemon import engine
+from macecho.vad.vad import VadConfig, VadProcessor
+
+EN_WAV = Path(engine.__file__).parents[1] / "vad" / "en.wav"
+RNG = np.random.default_rng(0)
+
+
+def room(seconds):
+    """Quiet room noise: never exact digital zeros, which is what a denied mic delivers."""
+    return RNG.normal(0, 20, int(seconds * 16000)).astype(np.int16)
+
+
+def speech(seconds=4.0):
+    with wave.open(str(EN_WAV)) as w:
+        return np.frombuffer(w.readframes(int(seconds * 16000)), np.int16)
+
+
+def frames(*parts):
+    audio = np.concatenate(parts)
+    return (audio[i:i + 512] for i in range(0, len(audio) - 511, 512))
+
+
+def vad():
+    return VadProcessor(VadConfig(silence_duration=0.6))
+
+
+def test_capture_returns_the_first_sentence_as_float_audio_to_the_transcriber():
+    heard = []
+
+    def transcribe(segment):
+        heard.append(segment)
+        return "  hello there  "
+
+    assert engine.capture(frames(room(1), speech(), room(2)), vad(), transcribe, timeout=30) == "hello there"
+    assert heard[0].dtype == np.float32 and len(heard[0]) > 16000 * 0.5
+
+
+def test_an_empty_transcript_is_skipped_and_listening_goes_on():
+    replies = iter(["", "the real sentence"])
+    text = engine.capture(frames(room(1), speech(), room(2), speech(), room(2)), vad(),
+                          lambda _: next(replies), timeout=30)
+    assert text == "the real sentence"
+
+
+def test_nobody_speaking_times_out_with_none():
+    assert engine.capture(frames(room(5)), vad(), lambda _: "never", timeout=2) is None
+
+
+def test_a_denied_microphone_is_reported_not_waited_out():
+    with pytest.raises(server.EngineError) as denied:
+        engine.capture(frames(np.zeros(16000 * 3, np.int16)), vad(), lambda _: "never", timeout=60)
+    assert denied.value.kind == "mic_denied"
