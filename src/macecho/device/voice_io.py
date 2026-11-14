@@ -57,15 +57,17 @@ class VoiceIO:
         import AVFoundation as AV
         self.engine = AV.AVAudioEngine.alloc().init()
         mic = self.engine.inputNode()
-        ok, err = mic.setVoiceProcessingEnabled_error_(True, None)  # turns it on for the output too
-        if not ok:
-            raise RuntimeError(f"voice processing unavailable: {err}")
-        # ponytail: Apple's defaults, ducking other apps' audio and gain control included.
-
+        # The playback graph must exist before voice processing is turned on: in the other order
+        # the output fails to initialise (-10875) even on the MacBook's own mic and speakers.
         self.node = AV.AVAudioPlayerNode.alloc().init()
         self.engine.attachNode_(self.node)
         self.speaker_format = AV.AVAudioFormat.alloc().initStandardFormatWithSampleRate_channels_(player_rate, 1)
         self.engine.connect_to_format_(self.node, self.engine.mainMixerNode(), self.speaker_format)
+
+        ok, err = mic.setVoiceProcessingEnabled_error_(True, None)  # turns it on for the output too
+        if not ok:
+            raise RuntimeError(f"voice processing unavailable: {err}")
+        # ponytail: Apple's defaults, ducking other apps' audio and gain control included.
 
         converter, target = mic_converter(mic.outputFormatForBus_(0), recorder_rate)
         self.on_mic = None  # set by the recorder while it listens
