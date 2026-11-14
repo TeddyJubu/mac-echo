@@ -41,7 +41,9 @@ def handle(engine, request: dict) -> dict:
 def serve(engine, idle_minutes: float = 30, clock=time.monotonic, poll: float = 1.0) -> bool:
     """Serve until `stop` or `idle_minutes` without a request (0 never idles out).
 
-    Returns False at once if another daemon holds the lock: the caller's clients reach that one.
+    `engine` is an engine, or a function that builds one: it is called only once the lock is
+    held, so a second daemon started in a race exits before loading the model. Returns False at
+    once if another daemon holds the lock: the caller's clients reach that one.
     """
     protocol.runtime_dir().mkdir(parents=True, exist_ok=True)
     lock = open(protocol.lock_path(), "w")
@@ -50,6 +52,8 @@ def serve(engine, idle_minutes: float = 30, clock=time.monotonic, poll: float = 
     except BlockingIOError:
         lock.close()
         return False
+    if callable(engine):
+        engine = engine()
     path = protocol.socket_path()
     path.unlink(missing_ok=True)  # left by a daemon that crashed; we hold the lock, so it is stale
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

@@ -11,6 +11,9 @@ import numpy as np
 SYSTEM_PROMPT = ("Respond with interleaved text and audio.\n\n"
                  "You are a friendly voice assistant. Keep replies short.")
 ASR_PROMPT = "Perform ASR."  # LFM3's trained transcription trigger (auto-detects language)
+# Read the user message aloud. Checked 2026-11-14 with generation_mode="audio": at most one word off
+# per sentence when transcribed back, first audio after a median 0.32 s (docs/superpowers/specs).
+TTS_PROMPT = "Perform TTS."
 
 
 class SpeechModel:
@@ -62,20 +65,48 @@ class SpeechModel:
         the newest ``hold_frames`` held until the next decode (their iSTFT overlap isn't final);
         24/1 measured max |diff| 0.011 vs. decoding the whole reply at once.
         """
-        import mlx.core as mx
-        from mlx_vlm.generate.common import generation_stream
         from mlx_vlm.prompt_utils import apply_chat_template
-        from mlx_vlm.utils import prepare_inputs, should_add_special_tokens
 
         # LFM3-Audio and LFM3-Omni (a subclass) share one joint text+speech loop; without
         # "interleaved" it starts in text mode and never speaks.
-        model, cfg = self.model, self.model.config
-        prompt = apply_chat_template(self.processor, cfg, self._build_messages(),
+        prompt = apply_chat_template(self.processor, self.model.config, self._build_messages(),
                                      num_audios=1, use_tts_template=True)
-        inputs = prepare_inputs(self.processor, audio=[audio], prompts=prompt,
-                                add_special_tokens=should_add_special_tokens(cfg.model_type, self.processor))
-        input_ids = inputs.pop("input_ids")
+        tokens = yield from self._speak(self._inputs(prompt, [audio]), "interleaved", stop,
+                                        chunk_frames, context_frames, hold_frames)
+        text = self.processor.tokenizer.decode(
+            [t for t in tokens if t != self.model.config.audio_out_token_id], skip_special_tokens=True)
+        return text.strip()
+
+    def tts(self, text: str, stop: threading.Event | None = None):
+        """Blocking generator: `text` read aloud, as float32 24 kHz chunks (no history, no reply)."""
+        from mlx_vlm.prompt_utils import apply_chat_template
+
+        prompt = apply_chat_template(self.processor, self.model.config,
+                                     [{"role": "system", "content": TTS_PROMPT},
+                                      {"role": "user", "content": text}], num_audios=0)
+        yield from self._speak(self._inputs(prompt, None), "audio", stop, end_at_audio_eos=True)
+
+    def _inputs(self, prompt, audio):
+        from mlx_vlm.utils import prepare_inputs, should_add_special_tokens
+
+        inputs = prepare_inputs(self.processor, audio=audio, prompts=prompt,
+                                add_special_tokens=should_add_special_tokens(self.model.config.model_type,
+                                                                             self.processor))
         inputs.pop("attention_mask", None)
+        return inputs
+
+    def _speak(self, inputs, mode, stop=None, chunk_frames=4, context_frames=24, hold_frames=1,
+               end_at_audio_eos=False):
+        """Generate in `mode`, yielding speech as waveform chunks; returns the generated tokens.
+
+        Shared by stream() (a spoken reply) and tts() (reading text aloud). In audio-only mode the
+        model goes on after the end-of-speech frame, so tts() stops there.
+        """
+        import mlx.core as mx
+        from mlx_vlm.generate.common import generation_stream
+
+        model, cfg = self.model, self.model.config
+        input_ids = inputs.pop("input_ids")
         codec = model.codec()
         samples = codec.config.sampling_rate * 80 // 1000  # samples per codec frame
 
@@ -89,12 +120,16 @@ class SpeechModel:
 
         with self._lock, mx.stream(generation_stream):
             for token, codes in model.stream_slots(
-                    input_ids, generation_mode="interleaved", max_tokens=self.max_tokens,
+                    input_ids, generation_mode=mode, max_tokens=self.max_tokens,
                     temperature=0.0, **{**model.audio_sampling, **inputs}):
                 if stop is not None and stop.is_set():
                     break
                 tokens.append(token)
-                if codes is None or codes[0].item() == cfg.audio_eos_code:
+                if codes is None:
+                    continue
+                if codes[0].item() == cfg.audio_eos_code:
+                    if end_at_audio_eos:
+                        break
                     continue
                 frames.append(codes)
                 ready = len(frames) - hold_frames
@@ -105,9 +140,7 @@ class SpeechModel:
                     emitted = ready
             if frames and emitted < len(frames) and not (stop is not None and stop.is_set()):
                 yield decode_new()  # flush the tail, held frames included
-        text = self.processor.tokenizer.decode(
-            [t for t in tokens if t != cfg.audio_out_token_id], skip_special_tokens=True)
-        return text.strip()
+        return tokens
 
     def respond(self, audio: np.ndarray) -> tuple[str, np.ndarray, int]:
         """Blocking, non-streaming convenience: (text, whole float32 waveform, sample_rate)."""

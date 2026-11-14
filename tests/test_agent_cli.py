@@ -115,6 +115,8 @@ def test_idle_daemon_exits_and_removes_its_socket(runtime):
 def test_only_one_daemon_serves_at_a_time(runtime):
     start(FakeEngine(), idle_minutes=0)
     assert server.serve(FakeEngine(), idle_minutes=0, poll=0.02) is False  # lock already held
+    # The loser of a start-up race must not load the 1.9 GB model before finding out.
+    assert server.serve(lambda: pytest.fail("built an engine without the lock"), idle_minutes=0) is False
     assert ask({"op": "say", "text": "first one"}) == {"ok": True}
     ask({"op": "stop"})
 
@@ -264,3 +266,34 @@ def test_a_denied_microphone_is_reported_not_waited_out():
     with pytest.raises(server.EngineError) as denied:
         engine.capture(frames(np.zeros(16000 * 3, np.int16)), vad(), lambda _: "never", timeout=60)
     assert denied.value.kind == "mic_denied"
+
+
+# --- speaking ----------------------------------------------------------------------------------
+
+from macecho.daemon import voice
+
+
+def test_spoken_text_drops_markdown_code_and_links():
+    assert voice.speakable("`npm test` **passed**, see https://example.com/run/42") == "npm test passed, see"
+    assert voice.speakable("Here:\n```py\nprint(1)\n```\nDone.") == "Here: Done."
+    assert voice.speakable("Read [the docs](https://x.y) first") == "Read the docs first"
+    assert voice.speakable("## Summary\n- one\n- two") == "Summary one two"
+
+
+def test_long_text_is_spoken_sentence_by_sentence():
+    assert voice.sentences("First one. Second one? Third!") == ["First one.", "Second one?", "Third!"]
+
+
+def test_system_voice_says_the_cleaned_text(monkeypatch):
+    ran = []
+    monkeypatch.setattr(voice.subprocess, "run", lambda args, check: ran.append(args))
+    voice.SystemVoice().speak("**Tests** passed.")
+    voice.SystemVoice().speak("```\nonly code\n```")  # nothing speakable: say nothing
+    assert ran == [["say", "Tests passed."]]
+
+
+def test_voice_names_pick_the_right_voice():
+    assert isinstance(voice.make("system", None), voice.SystemVoice)
+    assert isinstance(voice.make("lfm3", object()), voice.LfmVoice)
+    with pytest.raises(ValueError):
+        voice.make("robot", None)
