@@ -160,8 +160,8 @@ def test_each_session_rereads_the_audio_devices_before_opening_any_stream(monkey
             await _task
 
     a = object.__new__(agent_module.Agent)
-    a.audio_player = types.SimpleNamespace(play=play)
-    a.audio_recorder = types.SimpleNamespace(start=record)
+    a.sounddevice_io = (types.SimpleNamespace(start=record), types.SimpleNamespace(play=play))
+    a._open_voice_io = lambda: order.append("voice_io")  # None: no echo cancellation this session
     a.audio_player_queue_iterator, a.cleanup = None, cleanup
     asyncio.run(a.start())
-    assert order[0] == "refresh" and set(order) == {"refresh", "play", "record"}
+    assert order[0] == "refresh" and set(order) == {"refresh", "voice_io", "play", "record"}

@@ -20,7 +20,8 @@ dependencies = [
 
 [project.optional-dependencies]
 # The menu bar and Dock app (macecho.menubar); the legacy ASR/LLM/TTS stack stays in requirements.txt.
-app = ["rumps", "pyobjc-framework-WebKit", "pydantic-settings>=2"]
+# AVFoundation: echo cancellation (macecho.device.voice_io); without it the app runs without.
+app = ["rumps", "pyobjc-framework-WebKit", "pyobjc-framework-AVFoundation", "pydantic-settings>=2"]
 
 [project.scripts]
 macecho = "macecho.cli:main"

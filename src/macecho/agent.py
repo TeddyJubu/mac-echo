@@ -34,6 +34,7 @@ class Agent:
         self.vad = None
         self.audio_player = None
         self.audio_recorder = None
+        self.voice_io = None  # Apple's echo-cancelling engine, while a session has it open
         self.last_input = np.zeros(0, np.int16)  # newest microphone block, for the UI's level meter
 
         # Initialize LLM Sentencizer for streaming sentence processing
@@ -150,6 +151,7 @@ class Agent:
             samplerate=config.audio_player.sample_rate,
             dtype=config.audio_player.numpy_dtype,
             blocksize=config.audio_player.chunk_size)
+        self.sounddevice_io = (self.audio_recorder, self.audio_player)  # used when voice_io can't start
 
         self.audio_player_queue = asyncio.Queue()
         self.audio_player_queue_iterator = QueueIterator(
@@ -169,6 +171,9 @@ class Agent:
         device.refresh_devices()
         # 打印所有的设备
         device.list_devices()
+        self.voice_io = self._open_voice_io()
+        self.audio_recorder, self.audio_player = (
+            (self.voice_io.recorder, self.voice_io.player) if self.voice_io else self.sounddevice_io)
 
         self.running = True
         play_task = None
@@ -199,6 +204,15 @@ class Agent:
         finally:
             # 确保清理资源
             await self.cleanup(play_task)
+
+    def _open_voice_io(self):
+        """This session's echo-cancelling audio, or None to use sounddevice without it."""
+        try:
+            from macecho.device.voice_io import VoiceIO
+            return VoiceIO(self.config.audio_recording.sample_rate, self.config.audio_player.sample_rate)
+        except Exception as e:  # no PyObjC AVFoundation, or mic and speaker on different hardware
+            print(f"Echo cancellation off for this session: {e}")
+            return None
 
     async def process_audio(self, audio_data: bytes):
         """
@@ -778,4 +792,7 @@ class Agent:
         except Exception as e:
             print(f"Error during cleanup: {e}")
         finally:
+            if self.voice_io:
+                self.voice_io.close()
+                self.voice_io = None
             print("Cleanup completed")
