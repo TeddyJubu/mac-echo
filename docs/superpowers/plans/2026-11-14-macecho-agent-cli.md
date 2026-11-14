@@ -41,7 +41,7 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
    speak plain words, not the symbols. *Test: `SystemVoice`/`LfmVoice` speak `speakable(text)`;
    Task 4.*
 2. **Empty `say` text** (an empty argument or empty stdin). Exit 1 with "nothing to say", without
-   starting the daemon. *Test: Task 3.*
+   starting the daemon. *Test: Task 2.*
 3. **A request larger than one socket read**, such as a 20 KB `say` text. The full text must
    arrive. *Test: Task 1, round trip of 20 000 characters.*
 4. **The client is killed (Ctrl-C) during `listen`.** The daemon must stay usable for the next
