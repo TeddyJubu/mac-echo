@@ -1,306 +1,225 @@
 # MacEcho
 
-🎙️ A high-performance, privacy-focused voice assistant that runs entirely on your Mac, optimized for Apple Silicon.
+**A private voice assistant for your Mac, and ears and a voice for your AI agents.**
+Everything runs locally on Apple Silicon: no cloud, no API keys, no audio leaves your machine.
 
-<p align="center">
-  <strong>✨ Real-time Voice AI • 🔒 100% Local • ⚡ Apple Silicon Optimized</strong>
-</p>
+MacEcho is built on Liquid AI's [LFM3](https://huggingface.co/LiquidAI) end-to-end speech models
+running through [MLX](https://github.com/ml-explore/mlx). One model hears you and talks back, so
+there is no separate speech recognition, LLM and text-to-speech chain to wire together.
 
-## Overview
+There are three ways to use it:
 
-MacEcho is a sophisticated voice assistant built from the ground up for macOS, leveraging the power of Apple Silicon's Neural Engine and unified memory architecture. It provides real-time voice interaction with complete privacy - all processing happens locally on your device.
+| | What you get | Start here |
+|---|---|---|
+| **Agent CLI** | `macecho listen` / `say` / `converse`: give Claude Code, Codex, Cursor or any script a voice conversation with you | [Quick start](#quick-start-voice-for-your-ai-agent) |
+| **Mac app** | A Dock and menu bar app with a voice-reactive orb: press Return and talk | [Mac app](#mac-app) |
+| **Python** | The streaming pipeline (VAD → LFM3 → speaker) to build on | [Development](#development) |
 
-## 🚀 Quick Start
+## Requirements
 
-### Prerequisites
+- A Mac with Apple Silicon (M-series). MLX does not run on Intel Macs.
+- Python 3.12 or 3.13. Newer versions are not supported yet: onnxruntime, used for voice
+  detection, has no wheels for them.
+- About 2 GB of disk space and 2 GB of memory for the speech model.
+- [uv](https://docs.astral.sh/uv/) to install the CLI (`brew install uv`).
 
-- macOS 12.0 or later (Apple Silicon recommended)
-- Python 3.9+
-- Homebrew (for audio dependencies)
-
-### Installation
-
-```bash
-# Install audio dependencies
-brew install portaudio
-
-# Clone the repository
-git clone https://github.com/realtime-ai/mac-echo.git
-cd mac-echo
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install requirements
-pip install -r requirements.txt
-```
-
-### Run Your First Assistant
+## Quick start: voice for your AI agent
 
 ```bash
-# Basic voice assistant (runs continuously)
-python examples/agent_usage_example.py --mode=run
-
-# Demo mode (30-second demo)
-python examples/agent_usage_example.py --mode=demo
-
-# Custom configuration
-MACECHO_LLM__MODEL_NAME="mlx-community/Qwen2.5-7B-Instruct-4bit" python examples/agent_usage_example.py
+uv tool install git+https://github.com/TeddyJubu/mac-echo
+macecho say "Hello, I can talk now."
 ```
 
-## 🤖 Use it from an AI agent
-
-`macecho` gives any agent that can run shell commands (Claude Code, Codex, Cursor, your own
-scripts) ears and a voice. The agent stays the brain; MacEcho listens to you and speaks its replies,
-entirely on your Mac.
+The first command downloads the speech model (about 1–2 GB, once), loads it into a small
+background daemon, and speaks. After that, commands respond immediately.
 
 ```bash
-uv tool install git+https://github.com/TeddyJubu/mac-echo   # Apple Silicon, Python 3.12–3.13
-
-macecho say "Hello"            # speak
-macecho listen                 # wait for one spoken sentence, print it
-reply=$(macecho converse "Done. What next?")   # speak, then listen: one call per turn
-macecho status                 # model and audio devices, as JSON
-macecho stop                   # free the model's memory (~2 GB)
+macecho listen                                   # wait for one spoken sentence, print it
+macecho say "The tests pass."                    # speak, return when finished
+reply=$(macecho converse "Done. What next?")     # speak, then listen: one call per turn
+macecho status                                   # model, voice and audio devices, as JSON
+macecho stop                                     # stop the daemon, free ~2 GB of memory
 ```
 
-- **Agents:** `macecho guide` prints how to run the conversation. If Claude Code is installed,
-  the first run adds a `macecho-voice` skill, so "let's talk" starts voice mode; set
-  `MACECHO_NO_SKILL=1` to skip that.
-- **Output:** stdout is only what you said. Exit codes: `0` ok, `1` error, `2` nobody spoke
-  before `--timeout` (120 s), `3` microphone access is off for your terminal app.
-- **Background:** the first command starts a daemon that keeps the model loaded (the first run
-  ever downloads it, about 1–2 GB). The mic is on only while listening. The daemon stops after
-  30 unused minutes (`MACECHO_IDLE_MINUTES`); its log is `~/Library/Logs/MacEcho-daemon.log`.
-- **Voice:** LFM3's own voice by default; `MACECHO_VOICE=system` uses the macOS voice instead.
+The first time something listens, macOS asks whether **your terminal app** (Terminal, iTerm,
+VS Code…) may use the microphone. Allow it.
 
-## ✨ Key Features
+### With Claude Code
 
-### 🎯 Core Capabilities
-- **100% Local Processing** - Complete privacy with no cloud dependencies
-- **Apple Silicon Optimized** - Leverages MLX framework for maximum performance on M-series chips
-- **Real-time Streaming** - Sub-second response times with streaming audio pipeline
-- **Multilingual Support** - Automatic language detection (English, Chinese, Japanese, Korean)
-- **Context-Aware Conversations** - Maintains conversation history across interactions
+If Claude Code is installed, the first `macecho` command also installs a `macecho-voice` skill in
+`~/.claude/skills/`. In any Claude Code session, say **"let's talk"** or **"voice mode"** and it
+starts a spoken conversation: it listens to you, does the work, and answers out loud.
 
-### 🔊 Voice Processing Pipeline
-- **Voice Activity Detection (VAD)** - Silero VAD for accurate speech detection with configurable thresholds
-- **Speech Recognition (ASR)** - SenseVoice model with excellent accuracy and language auto-detection
-- **Neural Language Models** - Qwen model family via MLX with 4-bit quantization support
-- **Text-to-Speech (TTS)** - CosyVoice for natural-sounding speech synthesis with multiple voices
+- To skip the automatic install, set `MACECHO_NO_SKILL=1`.
+- To refresh the skill after an upgrade, run `macecho install-skill --force`.
 
-### ⚡ Advanced Architecture
-- **Event-Driven Messaging** - Asynchronous message passing with priority queues
-- **Modular Pipeline Design** - Easily swap or extend components
-- **Streaming Sentencizer** - Real-time sentence boundary detection for immediate TTS
-- **Interrupt Handling** - Graceful interruption during speech generation
-- **Frame-Based Processing** - 32ms audio frames for ultra-low latency
-- **Comprehensive Configuration** - Flexible Pydantic-based settings management
+### With any other agent
 
-## 🏗️ Architecture
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Audio In  │ ──> │     VAD     │ ──> │     ASR     │ ──> │     LLM     │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-                                                                     │
-                                                                     v
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Audio Out  │ <── │     TTS     │ <── │ Sentencizer │ <── │   Response  │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-
-                          ▲                       │
-                          └───── Message Bus ─────┘
-                               (Event-Driven)
-```
-
-## ⚙️ Configuration
-
-MacEcho uses a hierarchical configuration system with multiple sources:
-
-### Configuration Priority (highest to lowest)
-1. **Command-line arguments**
-2. **Environment variables** (MACECHO_ prefix)
-3. **`.env` file**
-4. **Configuration files** (JSON/YAML)
-5. **Default values**
-
-### Quick Configuration
-
-Create a `.env` file in the project root:
+Point the agent at `macecho guide`. It prints the conversation loop, the exit codes and how to
+phrase spoken replies, written for an agent to follow. This repository's `AGENTS.md` does the same
+for agents that read it automatically. The whole loop is one command per turn:
 
 ```bash
-# Core Settings
-MACECHO_DEBUG=false
-MACECHO_APP_NAME="My Assistant"
-
-# Audio Configuration
-MACECHO_AUDIO_RECORDING__SAMPLE_RATE=16000
-MACECHO_AUDIO_RECORDING__CHANNELS=1
-
-# Model Selection
-MACECHO_LLM__MODEL_NAME="mlx-community/Qwen2.5-7B-Instruct-4bit"
-MACECHO_LLM__MAX_TOKENS=1000
-MACECHO_LLM__TEMPERATURE=0.7
-
-# Voice Settings
-MACECHO_VAD__THRESHOLD=0.7
-MACECHO_TTS__VOICE_ID="中文女"
+reply=$(macecho converse "I'm listening. What should we work on?")
+# …act on "$reply" as if the user had typed it, then answer and listen again:
+reply=$(macecho converse "Done. The build passes. Anything else?")
 ```
 
-See [Configuration Guide](docs/configuration.md) for detailed options.
+### Command reference
 
-## 🎮 Usage Examples
+| Command | What it does |
+|---|---|
+| `macecho listen [--timeout S] [--json]` | Opens the mic, waits for one complete sentence, prints exactly what you said. |
+| `macecho say "text"` | Speaks the text, which can also be piped on stdin. Markdown, code blocks and links are dropped first. |
+| `macecho converse "text" [--timeout S] [--json]` | `say`, then `listen`, in one call. |
+| `macecho status` | JSON: running, pid, model, voice, input and output device, idle minutes left. Never starts the daemon. |
+| `macecho stop` | Stops the daemon and frees the model's memory. |
+| `macecho guide` | Prints the guide for agents. |
+| `macecho install-skill [--force]` | Installs, or with `--force` refreshes, the Claude Code skill. |
 
-### Basic Voice Assistant
-```python
-from macecho.agent import Agent
-from macecho.config import get_config
+stdout carries only the result, so agents can capture it directly. Progress and errors go to
+stderr. `--json` prints `{"text": "...", "seconds": 2.4}`.
 
-# Load configuration
-config = get_config()
+| Exit code | Meaning |
+|---|---|
+| `0` | Success. |
+| `1` | Any other error. The message is on stderr; if the daemon crashed, it includes the log path. |
+| `2` | Nobody spoke before `--timeout` (default 120 s). stdout is empty. |
+| `3` | Microphone access is off for the app running the command. Turn it on in System Settings › Privacy & Security › Microphone. |
 
-# Create and run agent
-agent = Agent(config)
-agent.run()
+### Configuration
+
+All settings are environment variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MACECHO_SPEECH_MODEL` | `LiquidAI/LFM3-Audio-2B-MLX-4bit` | The speech model. `LiquidAI/LFM3-Omni-2B-MLX-8bit` also works. |
+| `MACECHO_VOICE` | `lfm3` | `lfm3` speaks in LFM3's own voice. `system` uses the macOS voice set in System Settings › Accessibility › Spoken Content. |
+| `MACECHO_IDLE_MINUTES` | `30` | Minutes without a command before the daemon stops itself. `0` keeps it running. |
+| `MACECHO_NO_SKILL` | unset | `1` stops the Claude Code skill from being installed automatically. |
+
+Set these where the daemon starts: the environment of the first `macecho` command after the
+daemon has stopped. Run `macecho stop` to apply a change.
+
+### How it works
+
+```
+agent ──shell──▶ macecho ──Unix socket──▶ macecho daemon   (started on first use, stops when idle)
+                                            ├─ Silero VAD   finds where your sentence ends
+                                            ├─ LFM3         transcribes it, and reads replies aloud
+                                            ├─ microphone   open only while listening
+                                            └─ speaker      re-checked each time (plug headphones in any time)
 ```
 
-### Custom LLM Configuration
-```python
-from macecho.llm import MLXQwenChat
+The `macecho` command is small and starts instantly. The daemon keeps the model in memory between
+turns and handles one request at a time, so two agents can share it. It lives in
+`~/Library/Application Support/MacEcho/`, and its log is `~/Library/Logs/MacEcho-daemon.log`.
 
-# Create chat model with context
-chat = MLXQwenChat(
-    model_name="mlx-community/Qwen2.5-14B-Instruct-4bit",
-    context_enabled=True,
-    max_context_rounds=10,
-    system_prompt="You are a helpful coding assistant."
-)
-
-# Stream response
-response = chat.chat_with_context(
-    user_message="How do I sort a list in Python?",
-    stream=True
-)
-```
-
-### Message System Example
-```python
-from macecho.message import MessageQueue, MessageType, MessagePriority
-
-# Create message queue
-queue = MessageQueue()
-
-# Subscribe to ASR messages
-@queue.subscribe(MessageType.ASR)
-async def handle_transcription(message):
-    print(f"Transcribed: {message.data['text']}")
-
-# Send high-priority message
-await queue.send_message(
-    MessageType.LLM,
-    {"text": "Process this urgently"},
-    priority=MessagePriority.HIGH
-)
-```
-
-## 📊 Performance
-
-On Apple Silicon (M1/M2/M3):
-- **First response**: < 1 second
-- **VAD latency**: < 50ms per frame
-- **ASR processing**: ~200ms for 3-second audio
-- **LLM token generation**: 20-50 tokens/second (model dependent)
-- **TTS synthesis**: Real-time factor < 0.3
-
-
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Audio Input Not Working**
-```bash
-# List audio devices
-python -c "import pyaudio; p=pyaudio.PyAudio(); print([p.get_device_info_by_index(i)['name'] for i in range(p.get_device_count())])"
-
-# Set specific device
-export MACECHO_AUDIO_RECORDING__DEVICE_INDEX=1
-```
-
-**Model Download Issues**
-```bash
-# Models are cached in ~/.cache/modelscope/
-# Clear cache if corrupted
-rm -rf ~/.cache/modelscope/hub/iic/SenseVoiceSmall
-
-# Set custom model directory
-export MACECHO_STORAGE__MODELS_DIR=/path/to/models
-```
-
-**Memory Issues**
-- Use smaller quantized models (4-bit recommended)
-- Reduce context window size
-- Disable model warmup for testing
-
-## 🤝 Contributing
-
-We welcome contributions! Areas of interest:
-
-- 🎯 Additional language model support
-- 🌍 More languages for ASR/TTS
-- 🔊 Alternative TTS engines
-- 🧪 Test coverage improvements
-- 📚 Documentation enhancements
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-MacEcho builds upon excellent open-source projects:
-- [MLX](https://github.com/ml-explore/mlx) - Apple's machine learning framework
-- [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) - Speech recognition
-- [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) - Text-to-speech
-- [Silero VAD](https://github.com/snakers4/silero-vad) - Voice activity detection
-
----
-
-<p align="center">
-  Made with ❤️ for the Mac community
-</p>
-## LFM3 end-to-end speech models (MLX)
-
-Set `speech_model` to replace the SenseVoice → Qwen → CosyVoice chain with a single Liquid AI model (Silero VAD still segments speech):
+### Uninstall
 
 ```bash
-uv venv --python 3.12 .venv   # onnxruntime has no Python 3.15 wheel yet
-uv pip install --python .venv/bin/python "mlx-vlm>=0.7.11" mlx-audio soundfile sounddevice numpy pydantic pydantic-settings onnxruntime pyyaml python-dotenv rumps pyobjc-framework-WebKit
-echo 'MACECHO_SPEECH_MODEL=LiquidAI/LFM3-Audio-2B-MLX-4bit' >> .env   # or LiquidAI/LFM3-Omni-2B-MLX-8bit
-.venv/bin/python examples/agent_usage_example.py --mode=run
+macecho stop
+uv tool uninstall macecho
+rm -rf ~/.claude/skills/macecho-voice "$HOME/Library/Application Support/MacEcho" ~/Library/Logs/MacEcho-daemon.log
+rm -rf ~/.cache/huggingface/hub/models--LiquidAI--LFM3-Audio-2B-MLX-4bit   # the model, ~2 GB
 ```
 
-### Mac app (Dock + menu bar)
+## Mac app
+
+A Dock and menu bar app in which MacEcho itself is the assistant: you talk, and LFM3 answers.
+
+- A dark window with an orb that moves with your voice and with each reply.
+- Frequency bars under the orb.
+- A Start/Stop button (Return presses it).
+- A switch between the Audio-2B and Omni-2B models.
+- The same controls in the menu bar.
+
+The app runs from a checkout of this repository:
 
 ```bash
-scripts/build_app.sh          # builds the orb page (needs Node) and dist/MacEcho.app (runs from this checkout's .venv)
-open dist/MacEcho.app         # or double-click it; drag to /Applications to keep it
+git clone https://github.com/TeddyJubu/mac-echo && cd mac-echo
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e ".[app]"
+scripts/build_app.sh        # builds the window's page (needs Node) and dist/MacEcho.app
+open dist/MacEcho.app
 ```
 
-Closing the window does not quit MacEcho, and a running copy keeps the code it started with: after
-changing the code, quit it (Cmd-Q) and open it again. `scripts/build_app.sh` quits a running copy for you.
+- **Keep it in the Dock:** right-click the Dock icon, then Options › Keep in Dock.
+- **Closing the window** leaves MacEcho running; click the Dock icon to bring it back.
+- **After changing code,** quit with ⌘Q and reopen. `scripts/build_app.sh` quits a running copy
+  for you.
+- **Menu bar icons:** 🎙… loading · 🎙 off · 🎙● listening · 🎙🔊 replying · 🎙⚠️ error (see
+  Open Log, which opens `~/Library/Logs/MacEcho.log`).
+- **If the orb reacts to room noise or barely moves when you speak,** adjust `LEVEL_FLOOR_DB` and
+  `LEVEL_CEIL_DB` in `src/macecho/device/device.py`.
 
-To keep it in the Dock, right-click its Dock icon and choose Options > Keep in Dock. The window
-shows an orb that moves with your voice and with the reply, a row of frequency bars under it, the
-state, a Start/Stop Listening button (Return presses it) and the model picker (Audio-2B / Omni-2B). Closing the window leaves MacEcho
-running; click the Dock icon to bring it back.
+## Performance
 
-The orb and the bars are the [ElevenLabs UI](https://ui.elevenlabs.io) Orb and Bar Visualizer
-components (MIT), kept in `ui/` as a small React page and shown in a web view. They run offline. If
-they react to room noise, or barely move when you speak, adjust `LEVEL_FLOOR_DB` / `LEVEL_CEIL_DB` in
-`src/macecho/device/device.py`.
+Measured with `scripts/benchmark.py` on a MacBook Air (Apple Silicon) running LFM3-Audio-2B,
+4-bit. Raw results are in `benchmarks/`.
 
-The same state shows in the menu bar: 🎙… loading model · 🎙 off · 🎙● listening · 🎙🔊 replying · 🎙⚠️ error (see Open Log).
-The menu has Start/Stop Listening, a Model picker (Audio-2B / Omni-2B), and Open Log (`~/Library/Logs/MacEcho.log`).
+| | |
+|---|---|
+| First reply audio after you stop speaking | 0.24–0.32 s, plus the 0.6 s pause that marks the end of your sentence |
+| Model load at startup | 2.1–2.5 s |
+| Spoken replies | generated 2.4–3× faster than they play |
+| Model memory | about 1.8 GB |
+
+Timings vary with background load. Compare runs made back to back.
+
+## Development
+
+```bash
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e ".[app]" pytest
+PYTHONPATH=src .venv/bin/python -m pytest tests/
+.venv/bin/python scripts/benchmark.py        # latency benchmark; exits 1 if over budget
+```
+
+- **Sandboxes:** the CLI tests in `tests/test_agent_cli.py` bind Unix sockets, and the model needs
+  the GPU (Metal). Both fail inside sandboxes that block those, such as some AI coding sandboxes;
+  run them outside.
+- **Layout:**
+  - `src/macecho/cli.py`: the `macecho` command (standard library only);
+  - `src/macecho/daemon/`: the daemon's server, engine and voices;
+  - `src/macecho/speech_model.py`: LFM3 chat, transcription and text-to-speech;
+  - `src/macecho/menubar.py` and `ui/`: the Mac app;
+  - `src/macecho/agent.py`: the streaming pipeline the app uses.
+- **Design docs:** `docs/superpowers/` holds the agent CLI's spec and implementation plan.
+
+### The original pipeline
+
+Before LFM3, MacEcho chained SenseVoice speech recognition, a Qwen LLM via MLX and CosyVoice
+text-to-speech. That code is still in `src/macecho/` (`asr/`, `llm/`, `tts/`). It is used when
+`MACECHO_SPEECH_MODEL` is not set, and needs the heavier dependencies in `requirements.txt`. The
+LFM3 path described above is the maintained one.
+
+## Troubleshooting
+
+- **No sound from replies.** Replies go to the current default output device, checked each time
+  you start listening. If you switched outputs mid-session, stop and start again. If that doesn't
+  help, run `macecho status` to see which output the daemon is using.
+- **Exit code 3 / "Microphone access is off".** Allow your terminal app in System Settings ›
+  Privacy & Security › Microphone, then quit and reopen the terminal.
+- **`listen` returns something nobody said.** A short noise can occasionally be transcribed as a
+  word. Every transcription is logged with its length and loudness in
+  `~/Library/Logs/MacEcho-daemon.log`. Please include those lines in a bug report.
+- **The first command takes a long time.** The model is downloading (once) or loading. The
+  download goes to `~/.cache/huggingface/`; set `HF_HOME` to put it elsewhere.
+- **Anything else.** Run `macecho stop` and try again, and check
+  `~/Library/Logs/MacEcho-daemon.log`.
+
+## Credits
+
+- [realtime-ai/mac-echo](https://github.com/realtime-ai/mac-echo), the original project this fork
+  builds on.
+- [LFM3](https://huggingface.co/LiquidAI) speech models by Liquid AI, run with
+  [mlx-vlm](https://github.com/Blaizzy/mlx-vlm) on Apple's [MLX](https://github.com/ml-explore/mlx).
+- [Silero VAD](https://github.com/snakers4/silero-vad) for voice activity detection.
+- The window's orb and bar visualizer come from [ElevenLabs UI](https://github.com/elevenlabs/ui)
+  (MIT).
+
+## License
+
+No license has been chosen for this repository yet, and the original project ships no license
+file either. Until one is added, the default copyright rules apply.
