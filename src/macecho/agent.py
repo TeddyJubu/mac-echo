@@ -209,7 +209,9 @@ class Agent:
         """This session's echo-cancelling audio, or None to use sounddevice without it."""
         try:
             from macecho.device.voice_io import VoiceIO
-            return VoiceIO(self.config.audio_recording.sample_rate, self.config.audio_player.sample_rate)
+            io = VoiceIO(self.config.audio_recording.sample_rate, self.config.audio_player.sample_rate)
+            print("Echo cancellation on for this session")
+            return io
         except Exception as e:  # no PyObjC AVFoundation, or mic and speaker on different hardware
             print(f"Echo cancellation off for this session: {e}")
             return None
