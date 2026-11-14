@@ -221,5 +221,7 @@ LFM3 path described above is the maintained one.
 
 ## License
 
-No license has been chosen for this repository yet, and the original project ships no license
-file either. Until one is added, the default copyright rules apply.
+[MIT](LICENSE) for this fork's work: the LFM3 integration, the Mac app, the agent CLI and the
+rest of the changes made here. Code inherited from
+[realtime-ai/mac-echo](https://github.com/realtime-ai/mac-echo) remains under its authors' terms.
+That project's README states MIT, but it ships no license file.
