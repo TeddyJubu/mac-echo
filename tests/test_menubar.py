@@ -32,6 +32,10 @@ def test_idle_model_is_freed_only_when_policy_says_so_and_nothing_is_generating(
     assert app.speech is None and app.agent is None  # the agent held the model too
 
 
+def test_policy_frees_the_model_after_30_idle_minutes():
+    assert not menubar.should_unload(29 * 60) and menubar.should_unload(30 * 60)
+
+
 def test_start_while_unloaded_loads_then_starts(monkeypatch):
     app, loaded, started = make_app(), [], []
     app.speech = None

@@ -70,7 +70,7 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
   `say(text) -> None`, `status() -> dict`. Engine methods raise `EngineError(kind, message)`.
 
 **Steps:**
-- [ ] **Tests.** Using `FakeEngine` and a real server thread on a short `MACECHO_RUNTIME_DIR`:
+- [x] **Tests.** Using `FakeEngine` and a real server thread on a short `MACECHO_RUNTIME_DIR`:
   - a round trip for each op: listen, say, converse, status, stop;
   - converse calls say, then listen;
   - `EngineError("timeout")` produces a reply with `ok: false, error: "timeout"`;
@@ -80,9 +80,9 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
   - with `idle_minutes` set and a fake clock past the deadline, the server exits and removes the
     socket;
   - a second `serve()` while the lock is held returns immediately.
-- [ ] Run the tests. They fail with an import error.
-- [ ] Implement `protocol.py` and `server.py`.
-- [ ] Run the tests. They pass. Commit `feat(cli): add the daemon socket protocol and server`.
+- [x] Run the tests. They fail with an import error.
+- [x] Implement `protocol.py` and `server.py`.
+- [x] Run the tests. They pass. Commit `feat(cli): add the daemon socket protocol and server`.
 
 ### Task 2: Client, CLI and lifecycle
 
@@ -99,7 +99,7 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
 - `cli.exit_code(reply) -> int`.
 
 **Steps:**
-- [ ] **Tests:**
+- [x] **Tests:**
   - `listen` with an ok reply prints only the text and returns 0;
   - `--json` prints `{"text", "seconds"}`;
   - a timeout reply returns 2 with empty stdout;
@@ -108,8 +108,8 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
   - a stale socket file is removed and spawn is called;
   - a reset connection is retried exactly once;
   - `status` with no daemon prints `{"running": false}` and does not spawn.
-- [ ] Run them; they fail. Implement `cli.py`; run them; they pass.
-- [ ] Commit `feat(cli): add the macecho client with auto-start and exit codes`.
+- [x] Run them; they fail. Implement `cli.py`; run them; they pass.
+- [x] Commit `feat(cli): add the macecho client with auto-start and exit codes`.
 
 ### Task 3: Engine, listening
 
@@ -125,14 +125,14 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
 - `Engine(repo, voice_name)` with `listen`, `say` and `status`.
 
 **Steps:**
-- [ ] **Tests**, using the real `VadProcessor` and `src/macecho/vad/en.wav` padded with 1 s of
+- [x] **Tests**, using the real `VadProcessor` and `src/macecho/vad/en.wav` padded with 1 s of
   silence on each side:
   - one transcript is returned;
   - a transcriber returning `""` once, then `"hi"`, yields `"hi"`;
   - pure silence with low-level noise yields `None` once the timeout passes;
   - all-zero frames raise `mic_denied`.
-- [ ] Run them; they fail. Implement `capture` and `Engine.listen`; run them; they pass.
-- [ ] Commit `feat(cli): listen for one utterance and transcribe it`.
+- [x] Run them; they fail. Implement `capture` and `Engine.listen`; run them; they pass.
+- [x] Commit `feat(cli): listen for one utterance and transcribe it`.
 
 ### Task 4: Voices and speaking
 
@@ -149,12 +149,12 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
 - `voice.make(name, speech_model)`.
 
 **Steps:**
-- [ ] **Tests:** `speakable("`npm test` **passed** see https://x.y")` returns `"npm test passed"`;
+- [x] **Tests:** `speakable("`npm test` **passed** see https://x.y")` returns `"npm test passed"`;
   `SystemVoice` calls `say` with the cleaned text (subprocess faked); `make("system")` and
   `make("lfm3")` choose correctly.
-- [ ] Run them; they fail. Implement; run them; they pass.
-- [ ] Add `python -m macecho.daemon`: build the `Engine` and call `serve()`.
-- [ ] Commit `feat(cli): speak with LFM3's voice or the system voice`.
+- [x] Run them; they fail. Implement; run them; they pass.
+- [x] Add `python -m macecho.daemon`: build the `Engine` and call `serve()`.
+- [x] Commit `feat(cli): speak with LFM3's voice or the system voice`.
 
 ### Task 5: Agent guide, skill auto-install, `guide`, `install-skill`
 
@@ -165,14 +165,14 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
 - Modify: `AGENTS.md` (create it)
 
 **Steps:**
-- [ ] **Tests**, with a temporary `HOME`:
+- [x] **Tests**, with a temporary `HOME`:
   - auto-install writes the skill when `~/.claude` exists and the skill is absent;
   - nothing happens when `~/.claude` is missing, when the skill is present, or when
     `MACECHO_NO_SKILL=1`;
   - `install-skill --force` overwrites;
   - `guide` prints the guide text.
-- [ ] Run them; they fail. Implement; run them; they pass.
-- [ ] Commit `feat(cli): ship an agent guide and auto-install the Claude Code skill`.
+- [x] Run them; they fail. Implement; run them; they pass.
+- [x] Commit `feat(cli): ship an agent guide and auto-install the Claude Code skill`.
 
 ### Task 6: Packaging, documentation and end-to-end check
 
@@ -183,18 +183,18 @@ Inputs the spec implies but the obvious tests miss, each pinned by a test in its
 - Modify: `scripts/build_app.sh`, only if it relies on `setup.py`
 
 **Steps:**
-- [ ] Write `pyproject.toml`:
+- [x] Write `pyproject.toml`:
   - `[project.scripts] macecho = "macecho.cli:main"`;
   - core dependencies;
   - optional extra `app = [rumps, pyobjc-framework-WebKit]`;
   - package data: `*.onnx`, `*.md`, `ui/index.html`.
-- [ ] `uv tool install --force .` into a temporary tool directory, then run `macecho --help`
+- [x] `uv tool install --force .` into a temporary tool directory, then run `macecho --help`
   and `macecho status`.
-- [ ] **End to end, outside the sandbox:**
+- [x] **End to end, outside the sandbox:**
   - `say -o q.aiff "what time is it"`;
   - run `Engine.capture` on that file through the real model; the transcript should match;
   - `macecho say "Tests passed."` should be heard;
   - `macecho stop`.
-- [ ] Add a "Use it from an AI agent" section to `README.md`.
-- [ ] Run the full test suite. Commit
+- [x] Add a "Use it from an AI agent" section to `README.md`.
+- [x] Run the full test suite. Commit
   `build: install macecho as a uv tool with a pyproject`.

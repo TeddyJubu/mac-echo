@@ -61,10 +61,9 @@ def should_unload(idle_seconds: float) -> bool:
 
     Asked every 0.3 s while the model is loaded and nothing is listening. True drops the model;
     the next Start Listening then waits for a reload (about 1.4 s, ~3 s once the weights have
-    left the disk cache).
+    left the disk cache). Quitting needs no policy: the process exits and macOS takes it all back.
     """
-    # TODO(human): choose the policy. Until then the model stays loaded, as it always has.
-    return False
+    return idle_seconds >= 30 * 60  # ponytail: same 30 min as the CLI daemon's default
 
 
 class MacEchoApp(rumps.App):

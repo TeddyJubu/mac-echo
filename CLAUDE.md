@@ -1,158 +1,57 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository. User-facing docs are in `README.md`;
+`AGENTS.md` tells agents how to *use* MacEcho's voice. This file is for *changing* it.
 
-## Architecture Overview
+## What MacEcho is
 
-MacEcho is a voice assistant that runs entirely on Mac, built with a modular streaming audio processing pipeline and an event-driven message system:
+A local voice assistant for Apple Silicon, built on Liquid AI's LFM3 end-to-end speech models
+(`LiquidAI/LFM3-Audio-2B-MLX-4bit` by default, or `LFM3-Omni-2B-MLX-8bit`) via `mlx-vlm`. One
+model hears, thinks and speaks; there is no separate ASR → LLM → TTS chain on the maintained path.
 
-### Core Components
-- **Agent (`src/macecho/agent.py`)**: Main orchestrator that manages the audio processing pipeline
-- **Message System (`src/macecho/message.py`)**: Event-driven message passing system for component communication
-- **VAD (Voice Activity Detection)**: Uses Silero VAD model to detect speech segments
-- **ASR (Automatic Speech Recognition)**: SenseVoice model for speech-to-text conversion  
-- **LLM (Large Language Model)**: Qwen models via MLX for response generation
-- **TTS (Text-to-Speech)**: CosyVoice for speech synthesis
-- **Streaming Pipeline**: Real-time audio processing with frame-based processing (32ms frames)
+Three ways in, sharing the same core:
 
-### Configuration System
-The project uses Pydantic Settings with hierarchical configuration:
-1. Environment variables (MACECHO_ prefix)
-2. .env file
-3. JSON/YAML config files
-4. Default values
+| Entry point | Code | Notes |
+|---|---|---|
+| **Agent CLI** `macecho listen/say/converse/status/stop/guide/install-skill` | `src/macecho/cli.py` | Standard library only, so it starts instantly. Auto-starts the daemon. |
+| **Daemon** | `src/macecho/daemon/` (`server.py`, `protocol.py`, `engine.py`, `voice.py`, `__main__.py`) | Holds the model. Unix socket in `~/Library/Application Support/MacEcho/` (`MACECHO_RUNTIME_DIR` overrides). One request at a time. Stops after `MACECHO_IDLE_MINUTES` (30). Log: `~/Library/Logs/MacEcho-daemon.log`. |
+| **Mac app** (Dock window + menu bar) | `src/macecho/menubar.py`, `ui/` (Vite/React page, built into `src/macecho/ui/index.html`) | Drives `agent.py`. Frees the model after 30 idle minutes (`should_unload`). Log: `~/Library/Logs/MacEcho.log`. |
 
-All configuration is centralized in `src/macecho/config.py` with separate config classes for each component.
+Core modules:
+- `speech_model.py`: `SpeechModel`, LFM3 chat, transcription (`Perform ASR.`) and TTS (`Perform TTS.`).
+- `agent.py`: the streaming pipeline the app uses (mic → 32 ms frames → VAD → LFM3 → speaker).
+- `vad/`: Silero VAD (`silero_vad.onnx`, onnxruntime, single-threaded on purpose).
+- `device/device.py`: `AudioRecorder`/`AudioPlayer` (sounddevice), plus `level`/`bands` for the orb.
+  Audio devices are re-read at the start of every session.
+- `config.py`: Pydantic Settings (`MACECHO_` env vars, `.env`, defaults).
+- `agent_guide.md`: what `macecho guide` prints and the Claude Code skill installs.
 
-### Audio Processing Flow
-1. Audio input → frame buffering (32ms chunks)
-2. VAD processing per frame
-3. Speech segment detection and accumulation
-4. ASR processing on complete speech segments
-5. LLM processing for response generation
-6. TTS synthesis and audio playback
+**Legacy:** `asr/` (SenseVoice), `llm/` (Qwen via MLX, OpenAI), `tts/` (CosyVoice, Kokoro),
+`sentencizer/`, `message/`. They are only used when `MACECHO_SPEECH_MODEL` is unset and need the
+heavy deps in `requirements.txt`. Don't extend them; the LFM3 path is the maintained one.
 
-## Development Commands
+## Commands
 
-### Environment Setup
 ```bash
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+uv venv --python 3.12 .venv                              # 3.12/3.13 only: onnxruntime has no newer wheels
+uv pip install --python .venv/bin/python -e ".[app]" pytest
+PYTHONPATH=src .venv/bin/python -m pytest tests/         # tests
+.venv/bin/python scripts/benchmark.py                    # latency benchmark, exits 1 over budget
+scripts/build_app.sh                                     # builds ui/ (needs Node) and dist/MacEcho.app
+PYTHONPATH=src .venv/bin/python -m macecho.menubar       # run the app without bundling
+uv tool install --force .                                # install the CLI from this checkout
 ```
 
-### Testing
-```bash
-# Run all tests
-pytest tests/
+Design docs for the CLI live in `docs/superpowers/` (spec and plan).
 
-# Run specific test
-pytest tests/test_audio_recorder.py
+## Gotchas
 
-# Test with async support
-pytest -v tests/ --asyncio-mode=auto
-```
-
-### Code Quality
-```bash
-# Format code
-black src/ tests/ examples/
-
-# Lint code
-flake8 src/ tests/ examples/
-```
-
-### Running the Application
-```bash
-# Run basic agent example
-cd /path/to/mac-echo
-python examples/agent_usage_example.py --mode=demo
-
-# Run long-running agent
-python examples/agent_usage_example.py --mode=run
-
-# Test configuration loading
-python examples/test_config.py
-
-# Demo message system
-python examples/message_system_demo.py
-
-# Alternatively, install in development mode
-pip install -e .
-```
-
-## Key Implementation Details
-
-### Message System Architecture
-- **Event-driven communication**: Components communicate through typed messages
-- **Message types**: ASR, LLM, TTS, VAD, Interrupt, Status, Error messages
-- **Priority system**: CRITICAL, HIGH, NORMAL, LOW priority levels
-- **Correlation tracking**: Messages can be linked through correlation IDs
-- **Serialization support**: JSON serialization for message persistence/transmission
-- **Type safety**: Strongly typed message classes with validation
-
-### Audio Frame Processing
-- Frame duration: 32ms (configurable via `frame_duration_ms`)
-- Frame size calculated as: `frame_duration_ms * sample_rate / 1000`
-- Uses `collections.deque` for efficient audio buffering
-- VAD processes each frame individually for real-time detection
-
-### Configuration Usage
-```python
-from macecho.config import MacEchoConfig
-
-# Load with defaults + env vars + .env
-config = MacEchoConfig()
-
-# Load from specific file
-config = MacEchoConfig.from_file("config.json")
-
-# Access nested settings
-sample_rate = config.audio_recording.sample_rate
-vad_threshold = config.vad.threshold
-```
-
-### Agent Lifecycle
-- Agent initializes VAD and ASR processors automatically using config parameters
-- VAD processor maps sampling rate from audio_recording config to VAD config
-- ASR processor initialized with SenseVoice model and device configuration
-- Supports both manual resource management and async context manager
-- Proper exception handling for audio processing errors
-- Graceful shutdown with cleanup of audio resources, VAD state reset, and ASR resource release
-- Signal handling for long-running processes
-
-### Device Support
-- Optimized for Apple Silicon (MLX framework)
-- CPU/CUDA/MPS device support for models
-- PyAudio for cross-platform audio I/O
-- Audio device enumeration and selection
-
-## Model Integration Notes
-
-### VAD (Voice Activity Detection)
-- Uses `silero_vad.onnx` model in `src/macecho/vad/`
-- Threshold-based speech detection with padding
-- Frame-by-frame processing for low latency
-
-### ASR (SenseVoice)
-- Supports multilingual recognition (auto-detect, en, zh, jp, ko)
-- **Async processing**: Uses `asyncio.to_thread` to avoid blocking main thread
-- Model caching system to avoid reload overhead  
-- Configurable device placement (CPU/GPU/MPS)
-- FunASR-based implementation with post-processing
-- Default model: `iic/SenseVoiceSmall` from ModelScope
-- Automatic model download and caching in `~/.cache/modelscope/`
-
-### LLM (MLX Integration) 
-- Qwen model family support via MLX
-- Quantized model support (4-bit by default)
-- Configurable generation parameters (temperature, max_tokens)
-- Model warmup for consistent performance
-
-### TTS (CosyVoice)
-- Multiple voice ID support
-- Speed control for speech synthesis
-- Streaming audio output via queue system
+- **Sandboxes:** the CLI tests bind Unix sockets, MLX needs Metal, and Hugging Face downloads need
+  the network. All three fail inside the Claude Code sandbox; run those with it off.
+- **LFM3 prompts are triggers, not suggestions.** It only chats if the system prompt starts with
+  `Respond with interleaved text and audio.` and `generation_mode="interleaved"` is set; otherwise
+  it transcribes or echoes. `Perform ASR.` / `Perform TTS.` select transcription and speech.
+- **Freeing the model** needs `gc.collect()` and `mx.clear_cache()`; macOS then reclaims the GPU
+  memory asynchronously (~3 s). Measure the footprint after a pause, or it looks like a leak.
+- **Benchmarks** swing with background load. Compare runs made back to back, not against old JSON.
+- **No echo cancellation yet:** on speakers the mic hears the replies; use headphones to test.
