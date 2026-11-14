@@ -1,16 +1,29 @@
 @import "tailwindcss";
 
-/* The shadcn colour names the ElevenLabs UI components use. Chosen to read on a macOS window
-   background, where shadcn's own near-white border colour would disappear. */
-:root {
-  --border: oklch(0 0 0 / 18%);
-  --primary: oklch(0.25 0 0);
-  --muted: oklch(0 0 0 / 6%);
+/* Instrument Sans, self-hosted: only the Latin variable file, inlined into the one HTML file. */
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("../node_modules/@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2")
+    format("woff2-variations");
+  font-weight: 100 900;
+  font-display: block;
 }
-.dark {
-  --border: oklch(1 0 0 / 20%);
-  --primary: oklch(0.93 0 0);
-  --muted: oklch(1 0 0 / 8%);
+
+/* Registered so it can transition: every tint in the window reads it, so a state change is one
+   ~0.9 s colour glide across glow, bars, focus rings and the detail line. */
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.74 0.03 262);
+}
+
+/* The shadcn colour names the ElevenLabs UI bars use: resting dots and lit bars. */
+:root {
+  --ink: #08090b; /* menubar.py paints the titlebar this exact colour */
+  --border: color-mix(in oklch, var(--accent) 24%, transparent);
+  --primary: var(--accent);
+  --muted: transparent;
+  transition: --accent 900ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 @theme inline {
   --color-border: var(--border);
@@ -18,8 +31,79 @@
   --color-muted: var(--muted);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   overflow: hidden;
-  background: transparent;
+}
+body {
+  background: var(--ink);
+  color: white;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+::selection {
+  background: color-mix(in oklch, var(--accent) 40%, transparent);
+}
+
+/* The light the orb throws on the room: dim at rest, fuller while a session is live. */
+.glow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--accent) 30%, transparent),
+    color-mix(in oklch, var(--accent) 8%, transparent) 55%,
+    transparent
+  );
+  opacity: 0.45;
+  scale: 0.9;
+  transition:
+    opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+    scale 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glow[data-live="true"] {
+  opacity: 1;
+  scale: 1;
+}
+
+/* At rest the orb is a dimmed light, not a lamp: it brightens when a session goes live. */
+.orb {
+  transition:
+    opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-rest="true"] > .orb {
+  opacity: 0.62;
+  filter: saturate(0.7) contrast(0.9);
+}
+
+/* New status text settles in: up a few points, out of a slight blur. */
+.rise {
+  animation: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 5px;
+    filter: blur(5px);
+  }
+}
+
+.segment-thumb {
+  transition:
+    translate 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after,
+  :root {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

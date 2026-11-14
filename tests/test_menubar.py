@@ -1,10 +1,10 @@
+import json
 import threading
 import time
 import types
 
 import numpy as np
 import rumps
-from AppKit import NSApplication
 
 from macecho import menubar
 from macecho.device.device import AudioPlayer, bands, level
@@ -43,32 +43,35 @@ def test_start_while_unloaded_loads_then_starts(monkeypatch):
     assert started == [True] and not app.start_when_ready
 
 
-def test_window_mirrors_state_and_its_controls_reach_the_menu_callbacks():
-    app, toggled, chosen = make_app(), [], []
+def test_window_page_gets_controls_state_and_its_clicks_do_what_the_menu_does(monkeypatch):
+    app, toggled, chosen, pushed = make_app(), [], [], []
     app.error = None
-    app.model_items = {name: rumps.MenuItem(name, callback=chosen.append) for name in menubar.MODELS}
-    app.toggle = rumps.MenuItem("Start Listening", callback=toggled.append)
+    app.model_items = {name: rumps.MenuItem(name) for name in menubar.MODELS}
+    app.toggle = rumps.MenuItem("Start Listening")
     app._build_window()
-    app.refresh(None)
-    assert (app.status.stringValue(), app.button.title()) == ("Off", "Start Listening")
-    assert app.picker.titleOfSelectedItem() is None  # "repo" is not a listed model
-    app.repo = menubar.MODELS["LFM3-Omni-2B"]
-    app.refresh(None)
-    assert app.picker.titleOfSelectedItem() == "LFM3-Omni-2B"
-    app.error = "Model failed to load: boom"
-    app.refresh(None)
-    assert app.status.stringValue() == app.error
+    assert app.window.contentView() is app.page and app.window.titlebarAppearsTransparent()
+    app.window = types.SimpleNamespace(isVisible=lambda: True)
+    app.page = types.SimpleNamespace(evaluateJavaScript_completionHandler_=lambda js, _: pushed.append(js))
 
-    nsapp, delegate = NSApplication.sharedApplication(), rumps.rumps.NSApp.alloc().init()
-    delegate._app = app.__dict__  # what rumps.App.run() does
-    nsapp.setDelegate_(delegate)
-    try:  # clicks: no target, so they must find the delegate through the responder chain
-        assert nsapp.sendAction_to_from_(app.button.action(), None, app.button)
-        app.picker.selectItemWithTitle_("LFM3-Audio-2B")
-        assert nsapp.sendAction_to_from_(app.picker.action(), None, app.picker)
-    finally:
-        nsapp.setDelegate_(None)
-    assert toggled == [app.button] and chosen == [app.model_items["LFM3-Audio-2B"]]
+    def sent_info():
+        call = next(js for js in reversed(pushed) if js.startswith("window.macechoInfo?."))
+        return json.loads(call.removeprefix("window.macechoInfo?.(").removesuffix(")"))
+
+    app.refresh(None)
+    assert sent_info() == {"error": None, "running": False, "pending": False, "busy": False,
+                           "models": list(menubar.MODELS), "model": None}  # "repo" is not listed
+    app.repo, app.error = menubar.MODELS["LFM3-Omni-2B"], "Model failed to load: boom"
+    app.refresh(None)
+    assert sent_info()["model"] == "LFM3-Omni-2B" and sent_info()["error"] == app.error
+
+    # The page's clicks arrive as script messages and call the menu items' handlers.
+    monkeypatch.setattr(app, "on_toggle", toggled.append)
+    monkeypatch.setattr(app, "on_model", chosen.append)
+    message = lambda body: types.SimpleNamespace(body=lambda: body)
+    app.bridge.userContentController_didReceiveScriptMessage_(None, message("toggle"))
+    app.bridge.userContentController_didReceiveScriptMessage_(None, message("model:LFM3-Audio-2B"))
+    app.bridge.userContentController_didReceiveScriptMessage_(None, message("model:not-a-model"))
+    assert toggled == [None] and chosen == [app.model_items["LFM3-Audio-2B"]]  # unknown name ignored
 
 
 def test_level_reads_silence_as_zero_and_speech_partway():
@@ -108,7 +111,7 @@ def test_player_reports_the_part_of_the_chunk_now_playing():
 def test_orb_gets_state_and_live_levels_only_while_a_session_runs():
     app, pushed = make_app(), []
     app.error, app.window = None, types.SimpleNamespace(isVisible=lambda: True)
-    app.orb = types.SimpleNamespace(evaluateJavaScript_completionHandler_=lambda js, _: pushed.append(js))
+    app.page = types.SimpleNamespace(evaluateJavaScript_completionHandler_=lambda js, _: pushed.append(js))
     flat = ", ".join(["0.00"] * menubar.ORB_BARS)
     app._push_orb()
     assert pushed == [f"window.macecho?.('off', 0.000, 0.000, [{flat}])"]
@@ -127,3 +130,4 @@ def test_orb_gets_state_and_live_levels_only_while_a_session_runs():
     app.window = types.SimpleNamespace(isVisible=lambda: False)
     app._push_orb()
     assert len(pushed) == 2  # nothing is sent to a closed window
+
