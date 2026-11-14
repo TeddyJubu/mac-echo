@@ -1,0 +1,88 @@
+{
+  "metrics": {
+    "ack_first_audio_s": 0.173,
+    "tasks_failed": 0,
+    "spoken_line_missing": 0,
+    "summary_words_max": 22,
+    "claude_s_median": 15.7,
+    "claude_cost_usd_total": 2.19,
+    "same_session": true,
+    "summary_first_audio_s": 0.292
+  },
+  "budget": {
+    "ack_first_audio_s": 0.5,
+    "summary_first_audio_s": 0.5,
+    "tasks_failed": 0,
+    "spoken_line_missing": 0,
+    "summary_words_max": 40
+  },
+  "ack": [
+    {
+      "first_audio_s": 0.173,
+      "total_s": 0.883,
+      "audio_s": 2.88
+    },
+    {
+      "first_audio_s": 0.164,
+      "total_s": 0.889,
+      "audio_s": 3.04
+    },
+    {
+      "first_audio_s": 0.154,
+      "total_s": 0.666,
+      "audio_s": 2.4
+    }
+  ],
+  "tasks": [
+    {
+      "request": "What does this project do? Answer in one sentence.",
+      "ok": true,
+      "done": true,
+      "seconds": 15.7,
+      "cost_usd": 0.607,
+      "spoken_line": true,
+      "summary": "It's a tiny Python calculator with one add function and one test that checks it.",
+      "summary_words": 15,
+      "session_id": "18923619-1ae7-4341-9d50-c321ee77384f"
+    },
+    {
+      "request": "Add a subtract(a, b) function to calc.py.",
+      "ok": true,
+      "done": true,
+      "seconds": 19.7,
+      "cost_usd": 0.735,
+      "spoken_line": true,
+      "summary": "I added a subtract function to the calculator. I couldn't run a quick check because it needed your approval.",
+      "summary_words": 19,
+      "session_id": "18923619-1ae7-4341-9d50-c321ee77384f"
+    },
+    {
+      "request": "Now add a test for it to test_calc.py.",
+      "ok": true,
+      "done": true,
+      "seconds": 15.2,
+      "cost_usd": 0.851,
+      "spoken_line": true,
+      "summary": "I added a subtract test, including one that would catch swapped arguments. I couldn't run the tests because that needed your approval.",
+      "summary_words": 22,
+      "session_id": "18923619-1ae7-4341-9d50-c321ee77384f"
+    }
+  ],
+  "summary_tts": [
+    {
+      "first_audio_s": 0.292,
+      "total_s": 1.614,
+      "audio_s": 5.6
+    },
+    {
+      "first_audio_s": 0.157,
+      "total_s": 1.765,
+      "audio_s": 6.56
+    },
+    {
+      "first_audio_s": 0.167,
+      "total_s": 2.446,
+      "audio_s": 8.96
+    }
+  ]
+}
