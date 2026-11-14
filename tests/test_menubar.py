@@ -1,3 +1,4 @@
+import asyncio
 import json
 import threading
 import time
@@ -131,3 +132,32 @@ def test_orb_gets_state_and_live_levels_only_while_a_session_runs():
     app._push_orb()
     assert len(pushed) == 2  # nothing is sent to a closed window
 
+
+def test_each_session_rereads_the_audio_devices_before_opening_any_stream(monkeypatch):
+    # PortAudio lists devices once per process: without a re-read, headphones plugged in after
+    # launch never become the output, and replies go to the speakers the jack has muted.
+    from macecho import agent as agent_module
+    from macecho.device import device
+
+    order = []
+    monkeypatch.setattr(device, "refresh_devices", lambda: order.append("refresh"))
+    monkeypatch.setattr(device, "list_devices", lambda: None)
+
+    async def play(_):
+        order.append("play")
+
+    async def record():
+        order.append("record")
+        return
+        yield
+
+    async def cleanup(_task):
+        if _task:
+            await _task
+
+    a = object.__new__(agent_module.Agent)
+    a.audio_player = types.SimpleNamespace(play=play)
+    a.audio_recorder = types.SimpleNamespace(start=record)
+    a.audio_player_queue_iterator, a.cleanup = None, cleanup
+    asyncio.run(a.start())
+    assert order[0] == "refresh" and set(order) == {"refresh", "play", "record"}

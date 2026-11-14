@@ -21,6 +21,19 @@ LEVEL_CEIL_DB = -12.0
 BANDS_HZ = (100.0, 4000.0)  # the range bands() splits up: where speech carries its energy
 
 
+def refresh_devices():
+    """Re-read the system's audio devices and its current default input and output.
+
+    PortAudio lists devices once per process, so without this, headphones plugged in after
+    launch never become the output: replies keep going to the MacBook speakers, which the
+    headphone jack mutes. Call only while no stream is open; restarting PortAudio under an open
+    stream breaks it.
+    """
+    # ponytail: re-read at session start only; a device change mid-session needs Stop/Start.
+    sd._terminate()
+    sd._initialize()
+
+
 def _unit(pcm: np.ndarray) -> np.ndarray:
     """PCM samples as float32 in -1..1, whichever integer or float type they arrived in."""
     samples = pcm.astype(np.float32)

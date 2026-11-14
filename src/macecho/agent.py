@@ -165,6 +165,8 @@ class Agent:
 
     async def start(self):
         """Start the audio processing agent with proper exception handling"""
+        # No stream is open between sessions: pick up headphones plugged in since the last one.
+        device.refresh_devices()
         # 打印所有的设备
         device.list_devices()
 
