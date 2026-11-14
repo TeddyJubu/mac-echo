@@ -72,9 +72,11 @@ class VoiceIO:
         converter, target = mic_converter(mic.outputFormatForBus_(0), recorder_rate)
         self.on_mic = None  # set by the recorder while it listens
         # ponytail: macOS delivers ~100 ms tap buffers whatever size is asked for; fine for VAD.
-        mic.installTapOnBus_bufferSize_format_block_(
-            0, 4800, mic.outputFormatForBus_(0),
-            lambda buffer, _when: self.on_mic and self.on_mic(convert(converter, target, buffer)))
+        def tap(buffer, _when):  # a void block: returning anything but None aborts the app
+            if self.on_mic:
+                self.on_mic(convert(converter, target, buffer))
+
+        mic.installTapOnBus_bufferSize_format_block_(0, 4800, mic.outputFormatForBus_(0), tap)
 
         self.engine.prepare()
         ok, err = self.engine.startAndReturnError_(None)
