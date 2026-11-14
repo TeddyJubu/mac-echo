@@ -4,6 +4,8 @@
     macecho say      "text"                      speak (or pipe the text on stdin)
     macecho converse "text" [--timeout] [--json] say, then listen: one agent turn, one call
     macecho status | stop
+    macecho guide                                 how an agent should hold the conversation
+    macecho install-skill [--force]               add the Claude Code skill (done automatically)
 
 stdout carries only the result. Exit codes: 0 ok, 1 error, 2 nobody spoke before the timeout,
 3 microphone access is off. The first command starts a background daemon that keeps the speech
@@ -23,8 +25,38 @@ from pathlib import Path
 
 from macecho.daemon import protocol
 
+GUIDE = Path(__file__).with_name("agent_guide.md")
+SKILL_HEADER = """---
+name: macecho-voice
+description: Talk with the user by voice on their Mac through the macecho CLI. Use when the user says "voice mode", "let's talk" or "talk to me", or asks you to listen to them or answer out loud.
+---
+
+"""
 MIC_HELP = ("Microphone access is off for the app running this command (your terminal or editor). "
             "Turn it on in System Settings › Privacy & Security › Microphone, then try again.")
+
+
+def skill_path() -> Path:
+    return Path.home() / ".claude/skills/macecho-voice/SKILL.md"
+
+
+def install_skill() -> Path:
+    path = skill_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(SKILL_HEADER + GUIDE.read_text())
+    return path
+
+
+def _auto_install_skill() -> None:
+    """First run with Claude Code present: add the skill, once, and never over the user's copy."""
+    if os.environ.get("MACECHO_NO_SKILL") or not (Path.home() / ".claude").is_dir() or skill_path().exists():
+        return
+    try:
+        install_skill()
+    except OSError:
+        return  # a nicety; never let it break the command the agent actually ran
+    print("Installed Claude Code skill: ~/.claude/skills/macecho-voice "
+          "(set MACECHO_NO_SKILL=1 to skip)", file=sys.stderr)
 
 
 def _connect() -> socket.socket | None:
@@ -128,11 +160,24 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("say", help="speak TEXT (or stdin)").add_argument("text", nargs="?")
     sub.add_parser("status", help="show the daemon's state as JSON")
     sub.add_parser("stop", help="stop the daemon and free the model's memory")
+    sub.add_parser("guide", help="print how an agent should hold a voice conversation")
+    sub.add_parser("install-skill", help="install the Claude Code skill").add_argument(
+        "--force", action="store_true", help="overwrite an existing copy")
     return p
 
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "install-skill":
+        if skill_path().exists() and not args.force:
+            print(f"Already installed: {skill_path()} (--force to overwrite)", file=sys.stderr)
+        else:
+            print(install_skill())
+        return 0
+    _auto_install_skill()
+    if args.command == "guide":
+        print(GUIDE.read_text(), end="")
+        return 0
     if args.command == "status":
         if not (sock := _connect()):
             print(json.dumps({"running": False}))

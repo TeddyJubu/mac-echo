@@ -297,3 +297,42 @@ def test_voice_names_pick_the_right_voice():
     assert isinstance(voice.make("lfm3", object()), voice.LfmVoice)
     with pytest.raises(ValueError):
         voice.make("robot", None)
+
+
+# --- agent guide and Claude Code skill ---------------------------------------------------------
+
+def skill_file(home):
+    return home / ".claude/skills/macecho-voice/SKILL.md"
+
+
+def test_first_run_installs_the_skill_when_claude_code_is_present(home, capsys, monkeypatch):
+    monkeypatch.setattr(cli, "_spawn_daemon", no_spawn)
+    (home / ".claude").mkdir()
+    cli.main(["guide"])
+    text = skill_file(home).read_text()
+    assert text.startswith("---\nname: macecho-voice\n") and "macecho converse" in text
+    assert "MACECHO_NO_SKILL" in capsys.readouterr().err
+
+
+def test_the_skill_is_left_alone_without_claude_code_when_present_or_opted_out(home, capsys, monkeypatch):
+    cli.main(["guide"])
+    assert not (home / ".claude").exists()  # no Claude Code: nothing created
+    (home / ".claude").mkdir()
+    monkeypatch.setenv("MACECHO_NO_SKILL", "1")
+    cli.main(["guide"])
+    assert not skill_file(home).exists()
+    monkeypatch.delenv("MACECHO_NO_SKILL")
+    skill_file(home).parent.mkdir(parents=True)
+    skill_file(home).write_text("my own edits")
+    cli.main(["guide"])
+    assert skill_file(home).read_text() == "my own edits"  # never overwritten unasked
+
+
+def test_install_skill_force_overwrites_and_guide_prints_the_guide(home, capsys):
+    skill_file(home).parent.mkdir(parents=True)
+    skill_file(home).write_text("old")
+    assert cli.main(["install-skill", "--force"]) == 0
+    assert "macecho converse" in skill_file(home).read_text()
+    capsys.readouterr()
+    assert cli.main(["guide"]) == 0
+    assert "Exit codes" in capsys.readouterr().out
