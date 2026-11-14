@@ -18,6 +18,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# ...but not the orb page's source helpers
+!ui/src/lib/
 lib64/
 parts/
 sdist/
