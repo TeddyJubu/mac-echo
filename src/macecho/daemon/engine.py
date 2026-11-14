@@ -73,10 +73,17 @@ class Engine:
                     data, _overflowed = mic.read(FRAME)
                     yield data[:, 0].copy()
 
-            text = capture(frames(), self.vad, self.speech.transcribe, timeout)
+            text = capture(frames(), self.vad, self._transcribe, timeout)
         if text is None:
             raise EngineError("timeout", f"nobody spoke within {timeout:g} s")
         return {"text": text, "seconds": round(time.monotonic() - start, 2)}
+
+    def _transcribe(self, segment: np.ndarray) -> str:
+        """The model's transcription, logged with what it heard, so a false trigger is traceable."""
+        text = self.speech.transcribe(segment)
+        rms = float(np.sqrt(np.mean(segment ** 2))) if len(segment) else 0.0
+        print(f"heard {len(segment) / RATE:.2f}s (rms {rms:.4f}): {text!r}", flush=True)
+        return text
 
     def say(self, text: str) -> None:
         from macecho.device.device import refresh_devices

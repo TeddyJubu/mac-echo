@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "macecho"
+version = "0.2.0"
+description = "Ears and a voice for AI agents, running entirely on your Mac"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"  # onnxruntime (Silero VAD) has no wheels for newer Pythons yet
+dependencies = [
+    "mlx-vlm==0.7.12",  # the version the LFM3 speech path is tested against
+    "numpy",
+    "onnxruntime>=1.17",
+    "pydantic>=2",
+    "sounddevice>=0.4.6",
+]
+
+[project.optional-dependencies]
+# The menu bar and Dock app (macecho.menubar); the legacy ASR/LLM/TTS stack stays in requirements.txt.
+app = ["rumps", "pyobjc-framework-WebKit", "pydantic-settings>=2"]
+
+[project.scripts]
+macecho = "macecho.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+macecho = ["agent_guide.md", "vad/*.onnx", "ui/index.html"]

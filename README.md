@@ -49,6 +49,32 @@ python examples/agent_usage_example.py --mode=demo
 MACECHO_LLM__MODEL_NAME="mlx-community/Qwen2.5-7B-Instruct-4bit" python examples/agent_usage_example.py
 ```
 
+## 🤖 Use it from an AI agent
+
+`macecho` gives any agent that can run shell commands (Claude Code, Codex, Cursor, your own
+scripts) ears and a voice. The agent stays the brain; MacEcho listens to you and speaks its replies,
+entirely on your Mac.
+
+```bash
+uv tool install git+https://github.com/TeddyJubu/mac-echo   # Apple Silicon, Python 3.12–3.13
+
+macecho say "Hello"            # speak
+macecho listen                 # wait for one spoken sentence, print it
+reply=$(macecho converse "Done. What next?")   # speak, then listen: one call per turn
+macecho status                 # model and audio devices, as JSON
+macecho stop                   # free the model's memory (~2 GB)
+```
+
+- **Agents:** `macecho guide` prints how to run the conversation. If Claude Code is installed,
+  the first run adds a `macecho-voice` skill, so "let's talk" starts voice mode; set
+  `MACECHO_NO_SKILL=1` to skip that.
+- **Output:** stdout is only what you said. Exit codes: `0` ok, `1` error, `2` nobody spoke
+  before `--timeout` (120 s), `3` microphone access is off for your terminal app.
+- **Background:** the first command starts a daemon that keeps the model loaded (the first run
+  ever downloads it, about 1–2 GB). The mic is on only while listening. The daemon stops after
+  30 unused minutes (`MACECHO_IDLE_MINUTES`); its log is `~/Library/Logs/MacEcho-daemon.log`.
+- **Voice:** LFM3's own voice by default; `MACECHO_VOICE=system` uses the macOS voice instead.
+
 ## ✨ Key Features
 
 ### 🎯 Core Capabilities
