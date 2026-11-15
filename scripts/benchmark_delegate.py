@@ -56,11 +56,16 @@ def make_repo() -> Path:
 
 
 def time_tts(speech, text: str) -> dict:
-    """Seconds to the first chunk and to the end, and how long the speech itself lasts."""
+    """Seconds to the first chunk and to the end, and how long the speech itself lasts. Spoken a
+    sentence at a time, as the voices do (daemon/voice.py), so the first sound waits for the first
+    sentence only: one call for a whole summary took 1.1 s to start, against 0.2-0.4 s per sentence."""
+    from macecho.daemon.voice import sentences, speakable
+
     start, first, samples = time.perf_counter(), None, 0
-    for chunk in speech.tts(text):
-        first = first if first is not None else time.perf_counter() - start
-        samples += chunk.size
+    for sentence in sentences(speakable(text)):
+        for chunk in speech.tts(sentence):
+            first = first if first is not None else time.perf_counter() - start
+            samples += chunk.size
     return {"first_audio_s": round(first or 0.0, 3), "total_s": round(time.perf_counter() - start, 3),
             "audio_s": round(samples / 24000, 2)}
 
