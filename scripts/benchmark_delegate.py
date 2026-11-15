@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from macecho.delegate import SPOKEN, Delegate  # noqa: E402
+from macecho.delegate import Delegate  # noqa: E402
 
 ACK = "Okay, Claude Code is working on it."
 
@@ -32,7 +32,7 @@ BUDGET = {
     "ack_first_audio_s": 0.5,     # silence between "do X" and "okay, on it"
     "summary_first_audio_s": 0.5,
     "tasks_failed": 0,
-    "spoken_line_missing": 0,     # Claude ignored the SPOKEN: instruction
+    "long_reports": 0,            # over 100 words: Claude ignored the briefing
     "summary_words_max": 40,      # about 15 s of speech; longer belongs on screen
 }
 
@@ -71,7 +71,7 @@ async def run_claude(repo: Path) -> list[dict]:
         result = await delegate.run(request)
         rows.append({"request": request, "ok": result.ok, "done": result.ok and check(repo),
                      "seconds": round(result.seconds, 1), "cost_usd": round(result.cost_usd, 3),
-                     "spoken_line": any(l.strip().startswith(SPOKEN) for l in result.text.splitlines()),
+                     "report_words": len(result.text.split()),
                      "summary": result.spoken, "summary_words": len(result.spoken.split()),
                      "session_id": result.session_id})
         print(f"  {'done' if rows[-1]['done'] else 'FAIL'}  {rows[-1]['seconds']:5.1f}s  "
@@ -104,7 +104,7 @@ def main():
         print(f"Claude Code in {repo}:", flush=True)
         tasks = results["tasks"] = asyncio.run(run_claude(repo))
         metrics["tasks_failed"] = sum(not t["done"] for t in tasks)
-        metrics["spoken_line_missing"] = sum(not t["spoken_line"] for t in tasks)
+        metrics["long_reports"] = sum(t["report_words"] > 100 for t in tasks)
         metrics["summary_words_max"] = max(t["summary_words"] for t in tasks)
         metrics["claude_s_median"] = sorted(t["seconds"] for t in tasks)[len(tasks) // 2]
         metrics["claude_cost_usd_total"] = round(sum(t["cost_usd"] for t in tasks), 2)

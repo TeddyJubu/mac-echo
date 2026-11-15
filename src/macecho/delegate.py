@@ -1,9 +1,9 @@
-"""Hand a spoken request to Claude Code in the background and get back a summary to say aloud.
+"""Hand a spoken request to Claude Code in the background and get back a report to say aloud.
 
-The voice model stays the talker; Claude Code (`claude -p`) does the work. Claude is asked to end
-its reply with a SPOKEN: line, so the hard condensing happens in the smart model and the voice only
-reads it out. Each Delegate keeps Claude's session id, so a follow-up ("now make it blue") continues
-the same session.
+The voice stays the talker; Claude Code (`claude -p`) does the work. Claude is briefed to write its
+final message for the ear: outcome first, plain text, short. Each Delegate keeps Claude's session
+id, so a follow-up ("now make it blue") continues the same session, and one sent while Claude is
+still working waits for it.
 """
 import asyncio
 import json
@@ -12,11 +12,14 @@ from dataclasses import dataclass
 
 from macecho.daemon.voice import sentences, speakable
 
-SPOKEN = "SPOKEN:"
+# Adapted from Bomby's harness briefing (MIT, github.com/bomby-app/bomby, agent/prompts/harness-briefing.md).
 INSTRUCTIONS = (
-    "This request was spoken aloud and your reply will be read out by a voice assistant. "
-    f"Finish with one last line that starts with {SPOKEN} and says what you did in one or two "
-    "short, plain sentences: no code, file paths, lists or markdown."
+    "You are working for a voice assistant. The user talks to the assistant; it hands you tasks, and "
+    "your final message goes back to it and is read aloud. Nobody can answer questions while you "
+    "work, so make reasonable decisions yourself and say which ones you made. Your final message "
+    "must lead with the outcome in one or two sentences, be plain text (no markdown, tables, code "
+    "blocks or file trees), name files, commands or numbers only when the user needs them, and stay "
+    "under about 100 words, unless the task is to find information the user asked for."
 )
 # Commands Claude may run without asking: test runners only, so it can check its own work.
 # Everything else stays refused in a headless run (acceptEdits allows edits, not commands).
@@ -35,11 +38,8 @@ class Result:
 
 
 def spoken_summary(text: str) -> str:
-    """The SPOKEN: line if Claude wrote one, else the first two sentences of its reply."""
-    for line in reversed(text.splitlines()):
-        if line.strip().startswith(SPOKEN):
-            return speakable(line.strip()[len(SPOKEN):])
-    # ponytail: two sentences of an unsummarised reply can still be long; cap words if that happens.
+    """The first two sentences: the briefing asks Claude to lead with the outcome."""
+    # ponytail: two sentences of a report that ignored the briefing can still be long; cap words then.
     return " ".join(sentences(speakable(text))[:2])
 
 
@@ -49,8 +49,13 @@ class Delegate:
     def __init__(self, cwd: str, command=("claude",), permission_mode: str = "acceptEdits"):
         self.cwd, self.command, self.permission_mode = cwd, tuple(command), permission_mode
         self.session_id: str | None = None
+        self._turn = asyncio.Lock()  # one task at a time per session: a follow-up waits its turn
 
     async def run(self, request: str) -> Result:
+        async with self._turn:
+            return await self._run(request)
+
+    async def _run(self, request: str) -> Result:
         args = [*self.command, "-p", request, "--output-format", "json",
                 "--permission-mode", self.permission_mode, "--append-system-prompt", INSTRUCTIONS,
                 "--allowedTools", *(f"Bash({command}:*)" for command in TEST_COMMANDS)]

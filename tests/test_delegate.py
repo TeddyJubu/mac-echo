@@ -15,7 +15,7 @@ here = pathlib.Path(sys.argv[0]).parent
 mode = (here / "mode").read_text()
 if mode == "ok":
     print(json.dumps({"type": "result", "is_error": False, "session_id": "s-1", "total_cost_usd": 0.25,
-                      "result": "Added the toggle.\n\n```css\n.dark {}\n```\nSPOKEN: I added a **dark mode** toggle to settings."}))
+                      "result": "I added a **dark mode** toggle to settings. Tests pass. I also tidied the CSS.\n\n```css\n.dark {}\n```"}))
 elif mode == "error":
     print(json.dumps({"type": "result", "is_error": True, "session_id": "s-1", "result": "API error"}))
 elif mode == "crash":
@@ -38,15 +38,16 @@ def fake(tmp_path):
     return make
 
 
-def test_success_speaks_the_spoken_line_and_keeps_the_full_reply(fake):
+def test_success_speaks_the_outcome_and_keeps_the_full_report(fake):
     result = asyncio.run(fake("ok").run("add a dark mode toggle"))
     assert result.ok and result.cost_usd == 0.25 and result.session_id == "s-1"
-    assert result.spoken == "I added a dark mode toggle to settings."  # markdown gone
+    assert result.spoken == "I added a dark mode toggle to settings. Tests pass."  # markdown gone
     assert "```css" in result.text  # the screen still gets everything
     args = fake.calls()[0]
     assert args[:2] == ["-p", "add a dark mode toggle"] and "--resume" not in args
     assert args[args.index("--output-format") + 1] == "json"
-    assert "SPOKEN:" in args[args.index("--append-system-prompt") + 1]
+    briefing = args[args.index("--append-system-prompt") + 1]
+    assert "lead with the outcome" in briefing and "100 words" in briefing
     allowed = args[args.index("--allowedTools") + 1:]
     assert "Bash(pytest:*)" in allowed and "Bash(npm test:*)" in allowed
     assert all(rule.startswith("Bash(") for rule in allowed)  # test runners only, nothing broader
@@ -57,6 +58,18 @@ def test_a_follow_up_continues_the_same_claude_session(fake):
     asyncio.run(delegate.run("first"))
     asyncio.run(delegate.run("now make it blue"))
     second = fake.calls()[1]
+    assert second[second.index("--resume") + 1] == "s-1"
+
+
+def test_a_follow_up_sent_while_busy_waits_then_continues_the_session(fake):
+    delegate = fake("ok")
+
+    async def go():
+        await asyncio.gather(delegate.run("first"), delegate.run("now make it blue"))
+
+    asyncio.run(go())
+    first, second = fake.calls()
+    assert "--resume" not in first  # without waiting, both would start fresh sessions
     assert second[second.index("--resume") + 1] == "s-1"
 
 
@@ -85,6 +98,6 @@ def test_cancelling_stops_claude_instead_of_leaving_it_running(fake):
     assert asyncio.run(go()) < 5  # killed, not waited out for 30 s
 
 
-def test_summary_falls_back_to_two_sentences_without_a_spoken_line():
+def test_the_summary_is_the_first_two_sentences():
     assert spoken_summary("Done. Tests pass. Also refactored a lot.") == "Done. Tests pass."
-    assert spoken_summary("Notes\nSPOKEN: Fixed the bug.\n") == "Fixed the bug."
+    assert spoken_summary("**Fixed** the `load` bug.") == "Fixed the load bug."
