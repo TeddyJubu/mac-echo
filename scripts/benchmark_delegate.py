@@ -1,10 +1,10 @@
 """Delegation benchmark: a spoken task goes to Claude Code, and a short summary comes back aloud.
 
-    .venv/bin/python scripts/benchmark_delegate.py [--no-voice] [--no-claude] [--model REPO] [--out FILE]
+    .venv/bin/python scripts/benchmark_delegate.py [--no-voice] [--no-claude] [--voice NAME] [--out FILE]
 
 Baseline: benchmarks/delegate-baseline.json. Compare runs made back to back; both halves swing with load.
 
-Voice (needs Metal, so no sandbox): LFM3 reading the acknowledgement and each summary; the number
+Voice (needs Metal, so no sandbox): ZONOS3-Mini reading the acknowledgement and each summary; the number
 that matters is how soon the first sound comes after the user stops talking.
 Claude (needs the network and spends money, about $0.5-1 per task): three tasks in a throwaway git
 repo, run through the real Delegate. Each is checked by its effect on the repo, not just its exit
@@ -81,9 +81,9 @@ async def run_claude(repo: Path) -> list[dict]:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--no-voice", action="store_true", help="skip the LFM3 timings")
+    parser.add_argument("--no-voice", action="store_true", help="skip the voice timings")
     parser.add_argument("--no-claude", action="store_true", help="skip Claude Code (free, offline)")
-    parser.add_argument("--model", help="speech model repo (default: MACECHO_SPEECH_MODEL)")
+    parser.add_argument("--voice", help="ZONOS3 voice (default: MACECHO_VOICE)")
     parser.add_argument("--out", help="write results as JSON to this file")
     args = parser.parse_args()
     results, metrics = {}, {}
@@ -92,9 +92,9 @@ def main():
     if not args.no_voice:
         from macecho.config import MacEchoConfig
         from macecho.speech_model import SpeechModel
-        repo_id = args.model or MacEchoConfig().speech_model or "LiquidAI/LFM3-Audio-2B-MLX-4bit"
-        print(f"Loading {repo_id}...", flush=True)
-        speech = SpeechModel(repo_id)
+        name = args.voice or MacEchoConfig().voice
+        print(f"Loading Fluid Speech Pro and ZONOS3-Mini (voice: {name})...", flush=True)
+        speech = SpeechModel(name)
         results["ack"] = [time_tts(speech, ACK) for _ in range(3)]
         metrics["ack_first_audio_s"] = max(r["first_audio_s"] for r in results["ack"])
         print(f"  ack: {results['ack']}")

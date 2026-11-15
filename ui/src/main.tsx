@@ -1,5 +1,5 @@
 // The whole MacEcho window: the orb, frequency bars, what the assistant is doing, the
-// Start/Stop control and the model switch. The Python app (macecho/menubar.py) drives it with
+// Start/Stop control and the voice switch. The Python app (macecho/menubar.py) drives it with
 //   window.macecho(state, mic, speaker, bands)   ~20 times a second while a session runs
 //   window.macechoInfo(info)                     ~3 times a second (see Info below)
 // and hears clicks back as webkit.messageHandlers.macecho.postMessage("toggle" | "model:<name>").
@@ -103,7 +103,7 @@ function describe(current: string, { error, model, viewer, connected }: Info) {
   }
   switch (current) {
     case "loading":
-      return { title: "Loading model", detail: model ?? "Custom model" }
+      return { title: "Loading model", detail: model ?? "Custom voice" }
     case "listening":
       return { title: "Listening", detail: "Go ahead and speak" }
     case "replying":
@@ -208,8 +208,8 @@ function ModelSwitch() {
   return (
     <div
       role="radiogroup"
-      aria-label="Speech model"
-      title={busy ? "Switch models once loading finishes" : "Speech model"}
+      aria-label="Voice"
+      title={busy ? "Switch voices once loading finishes" : "Voice"}
       className={cn(
         "relative grid h-8 w-[256px] rounded-full bg-white/[0.05] p-[3px] transition-opacity duration-300",
         busy && "opacity-45"

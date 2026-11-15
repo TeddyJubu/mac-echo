@@ -65,18 +65,18 @@ def test_window_page_gets_controls_state_and_its_clicks_do_what_the_menu_does(mo
     app.refresh(None)
     assert sent_info() == {"error": None, "running": False, "pending": False, "busy": False,
                            "models": list(menubar.MODELS), "model": None}  # "repo" is not listed
-    app.repo, app.error = menubar.MODELS["LFM3-Omni-2B"], "Model failed to load: boom"
+    app.repo, app.error = menubar.MODELS["Cillian"], "Model failed to load: boom"
     app.refresh(None)
-    assert sent_info()["model"] == "LFM3-Omni-2B" and sent_info()["error"] == app.error
+    assert sent_info()["model"] == "Cillian" and sent_info()["error"] == app.error
 
     # The page's clicks arrive as script messages and call the menu items' handlers.
     monkeypatch.setattr(app, "on_toggle", toggled.append)
     monkeypatch.setattr(app, "on_model", chosen.append)
     message = lambda body: types.SimpleNamespace(body=lambda: body)
     app.bridge.userContentController_didReceiveScriptMessage_(None, message("toggle"))
-    app.bridge.userContentController_didReceiveScriptMessage_(None, message("model:LFM3-Audio-2B"))
+    app.bridge.userContentController_didReceiveScriptMessage_(None, message("model:Imogen"))
     app.bridge.userContentController_didReceiveScriptMessage_(None, message("model:not-a-model"))
-    assert toggled == [None] and chosen == [app.model_items["LFM3-Audio-2B"]]  # unknown name ignored
+    assert toggled == [None] and chosen == [app.model_items["Imogen"]]  # unknown name ignored
 
 
 def test_level_reads_silence_as_zero_and_speech_partway():
@@ -245,3 +245,14 @@ def test_only_one_viewer_holds_the_window_lock(monkeypatch):
     assert menubar.take_viewer_lock() is None  # a second `--view` exits instead of opening a window
     first.close()  # the first window quit
     assert menubar.take_viewer_lock() is not None
+
+
+def test_picking_a_voice_switches_it_without_reloading_the_models(monkeypatch):
+    app = object.__new__(menubar.MacEchoApp)
+    app.repo, app.loading = "imogen", False
+    app.speech = types.SimpleNamespace(voice="imogen")
+    loads = []
+    monkeypatch.setattr(app, "_load", loads.append)
+    monkeypatch.setattr(app, "running", lambda: True)  # mid-conversation: the next sentence switches
+    app.on_model(types.SimpleNamespace(title="Cillian"))
+    assert app.speech.voice == "cillian" and app.repo == "cillian" and loads == []

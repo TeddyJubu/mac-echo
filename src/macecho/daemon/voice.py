@@ -1,4 +1,4 @@
-"""Turning an agent's text into speech: LFM3's own voice, or the macOS system voice.
+"""Turning an agent's text into speech: a ZONOS3-Mini voice, or the macOS system voice.
 
 Agents write markdown. speakable() keeps the words and drops the symbols, code blocks and links,
 which read aloud as noise; code belongs on screen.
@@ -31,8 +31,8 @@ class SystemVoice:
             subprocess.run(["say", text], check=True)
 
 
-class LfmVoice:
-    """LFM3 reading the text aloud (audio-only mode), streamed to the speaker as it's generated."""
+class ModelVoice:
+    """ZONOS3-Mini reading the text aloud, streamed to the speaker as it's generated."""
 
     def __init__(self, speech_model, live=None):
         self.speech, self.live = speech_model, live  # live: engine.Live, so a window can draw the reply
@@ -43,7 +43,7 @@ class LfmVoice:
         parts = sentences(speakable(text))
         if not parts:
             return
-        rate = self.speech.model.codec().config.sampling_rate
+        from macecho.speech_model import RATE as rate
         start, samples, dry = time.monotonic(), 0, 0
         # Leaving the block stops the stream, which waits for queued audio to finish playing.
         # latency: write() returns while this much is still queued, so generating the next chunk
@@ -65,8 +65,5 @@ class LfmVoice:
 
 
 def make(name: str, speech_model, live=None):
-    if name == "lfm3":
-        return LfmVoice(speech_model, live)
-    if name == "system":
-        return SystemVoice()
-    raise ValueError(f"MACECHO_VOICE must be lfm3 or system, not {name!r}")
+    """"system": the macOS voice; any other name is a ZONOS3-Mini voice (SpeechModel checks it)."""
+    return SystemVoice() if name == "system" else ModelVoice(speech_model, live)

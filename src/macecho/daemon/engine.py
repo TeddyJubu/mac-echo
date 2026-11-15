@@ -74,13 +74,14 @@ class Live:
 class Engine:
     """What the server calls: listen(timeout) -> dict, say(text), status() -> dict."""
 
-    def __init__(self, repo: str, voice_name: str):
+    def __init__(self, voice_name: str):
         from macecho.daemon import voice
-        from macecho.speech_model import SpeechModel
+        from macecho.speech_model import DEFAULT_VOICE, SpeechModel
         from macecho.vad.vad import VadConfig, VadProcessor
 
-        self.repo, self.voice_name = repo, voice_name
-        self.speech = SpeechModel(repo)
+        self.voice_name = voice_name
+        # "system" speaks with macOS; the model still hears, in its default voice's company.
+        self.speech = SpeechModel(DEFAULT_VOICE if voice_name == "system" else voice_name)
         self.vad = VadProcessor(VadConfig(sampling_rate=RATE, silence_duration=0.6))
         self.live = Live()
         self.voice = voice.make(voice_name, self.speech, self.live)
@@ -128,6 +129,6 @@ class Engine:
     def status(self) -> dict:
         import sounddevice as sd
 
-        return {"model": self.repo, "voice": self.voice_name, "pid": os.getpid(),
+        return {"model": "Fluid Speech Pro + ZONOS3-Mini", "voice": self.voice_name, "pid": os.getpid(),
                 "input": sd.query_devices(kind="input")["name"],
                 "output": sd.query_devices(kind="output")["name"]}

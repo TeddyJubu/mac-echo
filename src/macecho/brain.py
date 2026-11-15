@@ -1,6 +1,6 @@
-"""The Mac app's brain: Claude Haiku in the cloud, between LFM3's ears and LFM3's voice.
+"""The Mac app's brain: Claude Haiku in the cloud, between Fluid Speech's ears and ZONOS's voice.
 
-LFM3 still hears ("Perform ASR.") and speaks ("Perform TTS."); only the thinking moves here, and
+The speech models hear and speak on the Mac (speech_model.py); only the thinking happens here, and
 with it the choice of when to hand work to Claude Code, through Haiku's one tool, start_task
 (the shape Bomby uses: github.com/bomby-app/bomby, MIT). The user's words go to Anthropic as
 text; their audio never leaves the Mac.

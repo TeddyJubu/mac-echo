@@ -2,9 +2,9 @@
 
     .venv/bin/python scripts/benchmark_brain.py [--model claude-haiku-5-5] [--out FILE]
 
-The 40 labelled requests from eval_router.py go through the real Brain, each as the first turn of a
-fresh call, one at a time on one shared connection (as in the app). LFM3 scored 78 % at best on the
-same requests (benchmarks/router-lfm3-*.json). Needs ANTHROPIC_API_KEY and the network, so no
+The 40 labelled requests below go through the real Brain, each as the first turn of a
+fresh call, one at a time on one shared connection (as in the app). LFM3, the speech model MacEcho used
+before, scored 78 % at best on them (benchmarks/router-lfm3-*.json). Needs ANTHROPIC_API_KEY and the network, so no
 sandbox; costs well under a cent.
 """
 import argparse
@@ -16,10 +16,59 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
+sys.path.insert(0, str(ROOT / "src"))
 
-from eval_router import CASES  # noqa: E402
 from macecho.brain import MODEL, Brain, Stop, Task  # noqa: E402
+
+# Who should handle what was said: CLAUDE needs the user's project, files or computer; CHAT doesn't.
+CASES = [  # (what the user said, who should handle it)
+    # plain tasks
+    ("Add a dark mode toggle to the settings page.", "CLAUDE"),
+    ("Fix the failing test.", "CLAUDE"),
+    ("Commit my changes and push them.", "CLAUDE"),
+    ("Rename the function load to load_model everywhere.", "CLAUDE"),
+    ("Write a README for this project.", "CLAUDE"),
+    ("Run the benchmark again.", "CLAUDE"),
+    ("Delete the unused imports in the agent file.", "CLAUDE"),
+    ("Update the version number to 0.3.", "CLAUDE"),
+    # tasks phrased as questions or remarks
+    ("Can you make the button blue?", "CLAUDE"),
+    ("Could you add a test for the delegate?", "CLAUDE"),
+    ("I think the build is broken.", "CLAUDE"),
+    ("The orb is lagging behind the voice, can you look into it?", "CLAUDE"),
+    # questions only the project can answer
+    ("Why are the tests failing?", "CLAUDE"),
+    ("What does the delegate module do?", "CLAUDE"),
+    ("Which branch am I on?", "CLAUDE"),
+    ("How many TODOs are left in the code?", "CLAUDE"),
+    ("Remind me what we changed today.", "CLAUDE"),
+    ("Is the daemon running?", "CLAUDE"),
+    ("What's in my downloads folder?", "CLAUDE"),
+    ("Did the last commit get pushed?", "CLAUDE"),
+    # general knowledge
+    ("What's the capital of Japan?", "CHAT"),
+    ("What's seven times eight?", "CHAT"),
+    ("Explain what a hash map is.", "CHAT"),
+    ("How does async work in Python?", "CHAT"),
+    ("What's the difference between a list and a tuple?", "CHAT"),
+    ("Who wrote Pride and Prejudice?", "CHAT"),
+    ("How do I say thank you in Japanese?", "CHAT"),
+    ("What's a good name for a cat?", "CHAT"),
+    # small talk
+    ("Hi, how are you?", "CHAT"),
+    ("Tell me a joke.", "CHAT"),
+    ("Thanks, that's all for now.", "CHAT"),
+    ("Good morning!", "CHAT"),
+    ("You sound great today.", "CHAT"),
+    # traps
+    ("I talked to Claude yesterday.", "CHAT"),
+    ("Do you think tabs or spaces are better?", "CHAT"),
+    ("What can you do?", "CHAT"),
+    ("Can you tell me a fun fact?", "CHAT"),
+    ("Is Python faster than JavaScript?", "CHAT"),
+    ("What should I work on next?", "CHAT"),
+    ("Make it shorter next time.", "CHAT"),
+]
 
 # Metric -> limit. accuracy is a floor; the rest are ceilings. Anything out flags OUT and exits 1.
 BUDGET = {

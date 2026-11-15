@@ -135,9 +135,9 @@ def _start_daemon(spawn, wait: float) -> socket.socket | None:
     """Start the daemon if none is starting, then wait for its socket."""
     if not _daemon_running():
         protocol.socket_path().unlink(missing_ok=True)  # a crashed daemon's leftover
-        repo = os.environ.get("MACECHO_SPEECH_MODEL", protocol.DEFAULT_MODEL)
-        print("Loading voice model…" if _model_cached(repo) else
-              "Downloading voice model (first run only, ~1–2 GB)…", file=sys.stderr, flush=True)
+        cached = all(_model_cached(repo) for repo in (protocol.EARS, protocol.VOICE_MODEL))
+        print("Loading voice models…" if cached else
+              "Downloading voice models (first run only, ~1.5 GB)…", file=sys.stderr, flush=True)
         spawn()
     deadline = time.monotonic() + wait
     while time.monotonic() < deadline:

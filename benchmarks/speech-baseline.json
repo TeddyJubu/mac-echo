@@ -1,0 +1,122 @@
+{
+  "metrics": {
+    "first_audio_p50_s": 0.236,
+    "transcribe_p50_ms": 120,
+    "round_trip_wrong": 0
+  },
+  "budget": {
+    "first_audio_p50_s": 0.35,
+    "transcribe_p50_ms": 250,
+    "round_trip_wrong": 0
+  },
+  "rows": [
+    {
+      "voice": "imogen",
+      "said": "Tell me a story about a cat.",
+      "heard": "Tell me a story about a cat.",
+      "ok": true,
+      "first_audio_s": 0.213,
+      "speech_s": 2.53,
+      "transcribe_ms": 216
+    },
+    {
+      "voice": "imogen",
+      "said": "What does the greet function in app.py return?",
+      "heard": "What does the greet function in app.py return?",
+      "ok": true,
+      "first_audio_s": 0.249,
+      "speech_s": 3.8,
+      "transcribe_ms": 144
+    },
+    {
+      "voice": "imogen",
+      "said": "Never mind, stop that.",
+      "heard": "Never mind, stop that.",
+      "ok": true,
+      "first_audio_s": 0.249,
+      "speech_s": 2.33,
+      "transcribe_ms": 94
+    },
+    {
+      "voice": "imogen",
+      "said": "Once upon a time, a curious orange cat named Marmalade found a loose floorboard.",
+      "heard": "Once upon a time, a curious orange cat named Marmalade found a loose floorboard.",
+      "ok": true,
+      "first_audio_s": 0.215,
+      "speech_s": 5.87,
+      "transcribe_ms": 199
+    },
+    {
+      "voice": "imogen",
+      "said": "Commit my changes and push them.",
+      "heard": "Commit my changes and push them.",
+      "ok": true,
+      "first_audio_s": 0.234,
+      "speech_s": 2.87,
+      "transcribe_ms": 119
+    },
+    {
+      "voice": "imogen",
+      "said": "Which branch am I on?",
+      "heard": "Which branch am I on?",
+      "ok": true,
+      "first_audio_s": 0.232,
+      "speech_s": 1.67,
+      "transcribe_ms": 92
+    },
+    {
+      "voice": "cillian",
+      "said": "Tell me a story about a cat.",
+      "heard": "Tell me a story about a cat.",
+      "ok": true,
+      "first_audio_s": 0.222,
+      "speech_s": 2.53,
+      "transcribe_ms": 110
+    },
+    {
+      "voice": "cillian",
+      "said": "What does the greet function in app.py return?",
+      "heard": "What does the greet function in app.py return?",
+      "ok": true,
+      "first_audio_s": 0.217,
+      "speech_s": 3.4,
+      "transcribe_ms": 132
+    },
+    {
+      "voice": "cillian",
+      "said": "Never mind, stop that.",
+      "heard": "Never mind, stop that.",
+      "ok": true,
+      "first_audio_s": 0.261,
+      "speech_s": 2.0,
+      "transcribe_ms": 120
+    },
+    {
+      "voice": "cillian",
+      "said": "Once upon a time, a curious orange cat named Marmalade found a loose floorboard.",
+      "heard": "Once upon a time, a curious orange cat named Marmalade found a loose floorboard.",
+      "ok": true,
+      "first_audio_s": 0.239,
+      "speech_s": 4.93,
+      "transcribe_ms": 356
+    },
+    {
+      "voice": "cillian",
+      "said": "Commit my changes and push them.",
+      "heard": "Commit my changes and push them.",
+      "ok": true,
+      "first_audio_s": 0.319,
+      "speech_s": 2.73,
+      "transcribe_ms": 115
+    },
+    {
+      "voice": "cillian",
+      "said": "Which branch am I on?",
+      "heard": "Which branch am I on?",
+      "ok": true,
+      "first_audio_s": 0.263,
+      "speech_s": 2.07,
+      "transcribe_ms": 84
+    }
+  ]
+}

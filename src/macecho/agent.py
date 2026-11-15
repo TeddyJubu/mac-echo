@@ -32,7 +32,7 @@ CANT_THINK = "I can't reach Claude right now."
 
 
 def acknowledgement(heard: str) -> str | None:
-    """What LFM3 says the moment the user stops, while Haiku's reply is on its way (~1 s), or None
+    """What the voice says the moment the user stops, while Haiku's reply is on its way (~1 s), or None
     to stay quiet. `heard` is the user's transcribed words."""
     # TODO(human)
     return None
@@ -88,78 +88,19 @@ class Agent:
 
         self.llm = None
         self.speech = speech  # preloaded SpeechModel (menu bar app reuses it across start/stop)
-        if speech is not None:
-            pass
-        elif config.speech_model:
-            # End-to-end LFM3 model replaces ASR + LLM + TTS (heavy legacy deps never imported)
+        if speech is None:
             from macecho.speech_model import SpeechModel
-            print(f"Loading speech model {config.speech_model}...")
-            self.speech = SpeechModel(config.speech_model)
-        else:
-            self._init_legacy_pipeline(config)
+            print(f"Loading Fluid Speech Pro and ZONOS3-Mini (voice: {config.voice})...")
+            self.speech = SpeechModel(config.voice)
 
-        self.brain = None  # Claude Haiku when MACECHO_BRAIN=haiku; LFM3 then only hears and speaks
+        # Claude Haiku thinks; the speech model only hears and speaks.
+        from macecho.brain import Brain
+        self.brain = Brain(model=config.brain_model, can_delegate=bool(config.project_dir))
         self.delegates = {}  # Claude Code sessions by name, for the brain's start_task
         self.background = set()  # running Claude Code tasks (held, or asyncio may drop them)
         self.brain_lock = asyncio.Lock()  # one brain turn at a time: replies and reports share history
-        if config.brain == "haiku":
-            if self.speech is None:
-                raise ValueError("MACECHO_BRAIN=haiku needs MACECHO_SPEECH_MODEL: LFM3 hears and speaks for it")
-            from macecho.brain import Brain
-            self.brain = Brain(model=config.brain_model, can_delegate=bool(config.project_dir))
 
         self._init_audio_io(config)
-
-    def _init_legacy_pipeline(self, config: MacEchoConfig):
-        try:
-            import funasr  # noqa: F401
-        except ImportError:
-            raise RuntimeError(
-                "No speech model set and the legacy pipeline (funasr) isn't installed. "
-                "Add MACECHO_SPEECH_MODEL=LiquidAI/LFM3-Audio-2B-MLX-4bit to .env") from None
-        from macecho.asr.sencevoice.model import SenceVoiceASR
-        from macecho.llm import prompt
-        from macecho.llm.factory import LLMFactory
-
-        # Initialize ASR processor
-        try:
-            self.asr = SenceVoiceASR(
-                language=config.asr.language,
-                sample_rate=config.audio_recording.sample_rate,
-                model_dir=config.asr.model_name,
-                device=config.asr.device,
-                auto_initialize=True
-            )
-            print(f"ASR initialized: {type(self.asr)}")
-        except Exception as e:
-            print(f"Warning: Failed to initialize ASR: {e}")
-            self.asr = None
-
-        # Initialize LLM processor (MLX Qwen)
-        try:
-            config.llm.system_prompt = prompt.SYSTEM_PROMPT
-            # Convert Pydantic model to dict for LLMFactory
-            llm_config_dict = config.llm.model_dump()
-            self.llm = LLMFactory.create_llm(llm_config_dict)
-            print(f"LLM initialized: {type(self.llm)}")
-        except Exception as e:
-            print(f"Warning: Failed to initialize LLM: {e}")
-            self.llm = None
-
-        # Initialize TTS processor (CosyVoice)
-        try:
-            from macecho.tts import CosyVoiceTTS
-            
-            self.tts = CosyVoiceTTS(
-                voice=config.tts.voice_id or "david",
-                sample_rate=config.audio_player.sample_rate,
-                api_key=getattr(config.tts, 'api_key', None),
-                base_url=getattr(config.tts, 'base_url', None),
-            )
-            print(f"TTS initialized: { config.tts }")
-        except Exception as e:
-            print(f"Warning: Failed to initialize TTS: {e}")
-            self.tts = None
 
     def _init_audio_io(self, config: MacEchoConfig):
         # Create debug audio output directory if in debug mode
@@ -346,8 +287,8 @@ class Agent:
             if self.speech:
                 # Not awaited: the mic loop keeps running so VAD can hear a barge-in, and
                 # _cancel_ongoing_processing() cancels this via current_llm_task.
-                handle = self._process_with_brain if self.brain else self._process_speech_model
-                self.current_llm_task = asyncio.create_task(handle(speech_segment, correlation_id))
+                self.current_llm_task = asyncio.create_task(
+                    self._process_with_brain(speech_segment, correlation_id))
                 return
 
             # Step 1: ASR processing
@@ -426,43 +367,8 @@ class Agent:
         except Exception as e:
             print(f"Error clearing audio queue: {e}")
 
-    async def _process_speech_model(self, speech_segment: np.ndarray, correlation_id: str):
-        """Speech in -> spoken reply out, in one LFM3 call."""
-        audio = speech_segment.astype(np.float32)
-        if speech_segment.dtype == np.int16:
-            audio /= 32768.0
-        loop, stop, start = asyncio.get_running_loop(), threading.Event(), time.time()
-
-        def produce():
-            """Worker thread: push each speech chunk to the player as soon as it's decoded."""
-            gen, played = self.speech.stream(audio, stop), 0
-            while True:
-                try:
-                    chunk = next(gen)
-                except StopIteration as done:
-                    return done.value or "", played
-                if stop.is_set():
-                    continue  # barge-in: drop late chunks; the generator exits on its next step
-                if not played:
-                    print(f"🔊 first audio after {time.time() - start:.2f}s")
-                played += chunk.size
-                pcm = (np.clip(chunk, -1.0, 1.0) * 32767).astype(np.int16).tobytes()
-                loop.call_soon_threadsafe(self.audio_player_queue.put_nowait, pcm)
-
-        try:
-            text, played = await asyncio.to_thread(produce)
-        except asyncio.CancelledError:
-            stop.set()  # stops MLX generation within one step
-            raise
-        except Exception as e:  # background task: nobody else would report this
-            print(f"Speech model error: {e}")
-            return
-        print(f"🗣️  {text!r} ({played / 24000:.1f}s audio, done in {time.time() - start:.1f}s)")
-        # Transcribe the user's turn for memory while the reply is still playing
-        await asyncio.to_thread(self.speech.remember, audio, text)
-
     async def _process_with_brain(self, speech_segment: np.ndarray, correlation_id: str):
-        """LFM3 hears, Claude Haiku thinks (and may hand work to Claude Code), LFM3 speaks."""
+        """Fluid Speech hears, Claude Haiku thinks (and may hand work to Claude Code), ZONOS speaks."""
         audio = speech_segment.astype(np.float32)
         if speech_segment.dtype == np.int16:
             audio /= 32768.0
@@ -498,7 +404,7 @@ class Agent:
                 since = None
 
     async def _speak(self, sentence: str, since: float | None = None):
-        """One sentence in LFM3's voice, onto the player as it's generated. Cancelling stops it."""
+        """One sentence in the voice, onto the player as it's generated. Cancelling stops it."""
         loop, stop = asyncio.get_running_loop(), threading.Event()
 
         def produce():

@@ -287,15 +287,11 @@ class MacEchoConfig(BaseSettings):
     app_name: str = Field(default="MacEcho", description="Application name")
     version: str = Field(default="1.0.0", description="Application version")
     debug: bool = Field(default=False, description="Enable debug mode")
-    speech_model: Optional[str] = Field(
-        default=None,
-        description="End-to-end speech model repo (e.g. LiquidAI/LFM3-Audio-2B-MLX-4bit, "
-                    "LiquidAI/LFM3-Omni-2B-MLX-8bit). When set, replaces the ASR/LLM/TTS pipeline.")
-    brain: Literal["lfm3", "haiku"] = Field(
-        default="lfm3",
-        description="Who thinks in the Mac app. lfm3: the speech model, local and offline. haiku: "
-                    "Claude Haiku via Anthropic's API (needs ANTHROPIC_API_KEY and the brain extra); "
-                    "LFM3 still hears and speaks, and the transcript text goes to Anthropic.")
+    voice: str = Field(
+        default="imogen",
+        description="ZONOS3-Mini voice that reads replies aloud (imogen or cillian; others in speech_model.py), or "
+                    "'system' in the agent CLI for the macOS voice. Claude Haiku thinks (ANTHROPIC_API_KEY); "
+                    "the transcript text goes to Anthropic, the audio stays on the Mac.")
     brain_model: str = Field(default="claude-haiku-5-5", description="Claude model when brain is haiku.")
     project_dir: Optional[str] = Field(
         default=None,

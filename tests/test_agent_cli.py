@@ -294,9 +294,7 @@ def test_system_voice_says_the_cleaned_text(monkeypatch):
 
 def test_voice_names_pick_the_right_voice():
     assert isinstance(voice.make("system", None), voice.SystemVoice)
-    assert isinstance(voice.make("lfm3", object()), voice.LfmVoice)
-    with pytest.raises(ValueError):
-        voice.make("robot", None)
+    assert isinstance(voice.make("imogen", object()), voice.ModelVoice)  # any ZONOS voice; SpeechModel checks it
 
 
 # --- agent guide and Claude Code skill ---------------------------------------------------------

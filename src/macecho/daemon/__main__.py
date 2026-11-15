@@ -6,14 +6,13 @@ from macecho.daemon import protocol, server
 
 
 def main() -> int:
-    repo = os.environ.get("MACECHO_SPEECH_MODEL", protocol.DEFAULT_MODEL)
-    voice = os.environ.get("MACECHO_VOICE", "lfm3")
+    voice = os.environ.get("MACECHO_VOICE", protocol.DEFAULT_VOICE)
     idle = float(os.environ.get("MACECHO_IDLE_MINUTES", "30"))
 
     def build():
         from macecho.daemon.engine import Engine
-        print(f"macecho daemon {os.getpid()}: loading {repo} (voice: {voice})", flush=True)
-        engine = Engine(repo, voice)
+        print(f"macecho daemon {os.getpid()}: loading speech models (voice: {voice})", flush=True)
+        engine = Engine(voice)
         print("ready", flush=True)
         return engine
 

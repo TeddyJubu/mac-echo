@@ -7,7 +7,10 @@ import json
 import os
 from pathlib import Path
 
-DEFAULT_MODEL = "LiquidAI/LFM3-Audio-2B-MLX-4bit"
+# The models the daemon loads (macecho.speech_model): Fluid Speech Pro hears, ZONOS3-Mini speaks.
+EARS = "FluidVoice-Labs/fluid-speech-pro-mlx"
+VOICE_MODEL = "mlx-community/ZONOS3-Mini"
+DEFAULT_VOICE = "imogen"
 # Error kinds the client maps to their own exit codes; any other kind exits 1.
 ERRORS = {"timeout": 2, "mic_denied": 3}
 
