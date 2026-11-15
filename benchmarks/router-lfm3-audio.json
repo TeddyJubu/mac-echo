@@ -1,0 +1,1003 @@
+{
+  "model": "LiquidAI/LFM3-Audio-2B-MLX-4bit",
+  "zero-shot": {
+    "accuracy": 0.0,
+    "chat_sent_to_claude": 3,
+    "claude_kept_as_chat": 20,
+    "unparseable": 37,
+    "median_s": 0.154,
+    "max_s": 0.175,
+    "rows": [
+      {
+        "text": "Add a dark mode toggle to the settings page.",
+        "expected": "CLAUDE",
+        "got": "?CHANGING",
+        "seconds": 0.153
+      },
+      {
+        "text": "Fix the failing test.",
+        "expected": "CLAUDE",
+        "got": "?FIXING",
+        "seconds": 0.142
+      },
+      {
+        "text": "Commit my changes and push them.",
+        "expected": "CLAUDE",
+        "got": "?COMMIT",
+        "seconds": 0.136
+      },
+      {
+        "text": "Rename the function load to load_model everywhere.",
+        "expected": "CLAUDE",
+        "got": "?CHANGING",
+        "seconds": 0.136
+      },
+      {
+        "text": "Write a README for this project.",
+        "expected": "CLAUDE",
+        "got": "?README",
+        "seconds": 0.13
+      },
+      {
+        "text": "Run the benchmark again.",
+        "expected": "CLAUDE",
+        "got": "?RUNNING",
+        "seconds": 0.135
+      },
+      {
+        "text": "Delete the unused imports in the agent file.",
+        "expected": "CLAUDE",
+        "got": "?CLEANING",
+        "seconds": 0.138
+      },
+      {
+        "text": "Update the version number to 0.3.",
+        "expected": "CLAUDE",
+        "got": "?UPDATING",
+        "seconds": 0.157
+      },
+      {
+        "text": "Can you make the button blue?",
+        "expected": "CLAUDE",
+        "got": "?BUTTON",
+        "seconds": 0.136
+      },
+      {
+        "text": "Could you add a test for the delegate?",
+        "expected": "CLAUDE",
+        "got": "?TESTING",
+        "seconds": 0.13
+      },
+      {
+        "text": "I think the build is broken.",
+        "expected": "CLAUDE",
+        "got": "?BUILDING",
+        "seconds": 0.129
+      },
+      {
+        "text": "The orb is lagging behind the voice, can you look into it?",
+        "expected": "CLAUDE",
+        "got": "?CHANGING",
+        "seconds": 0.14
+      },
+      {
+        "text": "Why are the tests failing?",
+        "expected": "CLAUDE",
+        "got": "?TESTING",
+        "seconds": 0.13
+      },
+      {
+        "text": "What does the delegate module do?",
+        "expected": "CLAUDE",
+        "got": "?DELEGATION",
+        "seconds": 0.157
+      },
+      {
+        "text": "Which branch am I on?",
+        "expected": "CLAUDE",
+        "got": "?BRANCH",
+        "seconds": 0.145
+      },
+      {
+        "text": "How many TODOs are left in the code?",
+        "expected": "CLAUDE",
+        "got": "?TODOS",
+        "seconds": 0.156
+      },
+      {
+        "text": "Remind me what we changed today.",
+        "expected": "CLAUDE",
+        "got": "?CHANGING",
+        "seconds": 0.148
+      },
+      {
+        "text": "Is the daemon running?",
+        "expected": "CLAUDE",
+        "got": "?RUNNING",
+        "seconds": 0.147
+      },
+      {
+        "text": "What's in my downloads folder?",
+        "expected": "CLAUDE",
+        "got": "?DOWNLOADS",
+        "seconds": 0.162
+      },
+      {
+        "text": "Did the last commit get pushed?",
+        "expected": "CLAUDE",
+        "got": "?CHECKING",
+        "seconds": 0.148
+      },
+      {
+        "text": "What's the capital of Japan?",
+        "expected": "CHAT",
+        "got": "?TOKYO",
+        "seconds": 0.162
+      },
+      {
+        "text": "What's seven times eight?",
+        "expected": "CHAT",
+        "got": "?56",
+        "seconds": 0.155
+      },
+      {
+        "text": "Explain what a hash map is.",
+        "expected": "CHAT",
+        "got": "?MAP",
+        "seconds": 0.141
+      },
+      {
+        "text": "How does async work in Python?",
+        "expected": "CHAT",
+        "got": "?ASYNC-AWAIT",
+        "seconds": 0.164
+      },
+      {
+        "text": "What's the difference between a list and a tuple?",
+        "expected": "CHAT",
+        "got": "?CHANGING",
+        "seconds": 0.15
+      },
+      {
+        "text": "Who wrote Pride and Prejudice?",
+        "expected": "CHAT",
+        "got": "?JANE",
+        "seconds": 0.175
+      },
+      {
+        "text": "How do I say thank you in Japanese?",
+        "expected": "CHAT",
+        "got": "?ARIGATOU",
+        "seconds": 0.154
+      },
+      {
+        "text": "What's a good name for a cat?",
+        "expected": "CHAT",
+        "got": "?MILO",
+        "seconds": 0.163
+      },
+      {
+        "text": "Hi, how are you?",
+        "expected": "CHAT",
+        "got": "?HOW",
+        "seconds": 0.16
+      },
+      {
+        "text": "Tell me a joke.",
+        "expected": "CHAT",
+        "got": "?WHY",
+        "seconds": 0.163
+      },
+      {
+        "text": "Thanks, that's all for now.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.168
+      },
+      {
+        "text": "Good morning!",
+        "expected": "CHAT",
+        "got": "?GOOD",
+        "seconds": 0.166
+      },
+      {
+        "text": "You sound great today.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.166
+      },
+      {
+        "text": "I talked to Claude yesterday.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.172
+      },
+      {
+        "text": "Do you think tabs or spaces are better?",
+        "expected": "CHAT",
+        "got": "?TABS",
+        "seconds": 0.156
+      },
+      {
+        "text": "What can you do?",
+        "expected": "CHAT",
+        "got": "?WHAT",
+        "seconds": 0.168
+      },
+      {
+        "text": "Can you tell me a fun fact?",
+        "expected": "CHAT",
+        "got": "?OTTERS",
+        "seconds": 0.166
+      },
+      {
+        "text": "Is Python faster than JavaScript?",
+        "expected": "CHAT",
+        "got": "?PYTHON",
+        "seconds": 0.139
+      },
+      {
+        "text": "What should I work on next?",
+        "expected": "CHAT",
+        "got": "?NEXT",
+        "seconds": 0.138
+      },
+      {
+        "text": "Make it shorter next time.",
+        "expected": "CHAT",
+        "got": "?NEXT",
+        "seconds": 0.157
+      }
+    ]
+  },
+  "few-shot": {
+    "accuracy": 0.775,
+    "chat_sent_to_claude": 4,
+    "claude_kept_as_chat": 4,
+    "unparseable": 3,
+    "median_s": 0.162,
+    "max_s": 0.196,
+    "rows": [
+      {
+        "text": "Add a dark mode toggle to the settings page.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.161
+      },
+      {
+        "text": "Fix the failing test.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.182
+      },
+      {
+        "text": "Commit my changes and push them.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.158
+      },
+      {
+        "text": "Rename the function load to load_model everywhere.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.171
+      },
+      {
+        "text": "Write a README for this project.",
+        "expected": "CLAUDE",
+        "got": "?README",
+        "seconds": 0.135
+      },
+      {
+        "text": "Run the benchmark again.",
+        "expected": "CLAUDE",
+        "got": "?RUN",
+        "seconds": 0.192
+      },
+      {
+        "text": "Delete the unused imports in the agent file.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.156
+      },
+      {
+        "text": "Update the version number to 0.3.",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.149
+      },
+      {
+        "text": "Can you make the button blue?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.161
+      },
+      {
+        "text": "Could you add a test for the delegate?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.15
+      },
+      {
+        "text": "I think the build is broken.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.162
+      },
+      {
+        "text": "The orb is lagging behind the voice, can you look into it?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.166
+      },
+      {
+        "text": "Why are the tests failing?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.194
+      },
+      {
+        "text": "What does the delegate module do?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.159
+      },
+      {
+        "text": "Which branch am I on?",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.175
+      },
+      {
+        "text": "How many TODOs are left in the code?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.16
+      },
+      {
+        "text": "Remind me what we changed today.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.163
+      },
+      {
+        "text": "Is the daemon running?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.191
+      },
+      {
+        "text": "What's in my downloads folder?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.167
+      },
+      {
+        "text": "Did the last commit get pushed?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.159
+      },
+      {
+        "text": "What's the capital of Japan?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.149
+      },
+      {
+        "text": "What's seven times eight?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.18
+      },
+      {
+        "text": "Explain what a hash map is.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.15
+      },
+      {
+        "text": "How does async work in Python?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.159
+      },
+      {
+        "text": "What's the difference between a list and a tuple?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.148
+      },
+      {
+        "text": "Who wrote Pride and Prejudice?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.153
+      },
+      {
+        "text": "How do I say thank you in Japanese?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.146
+      },
+      {
+        "text": "What's a good name for a cat?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.145
+      },
+      {
+        "text": "Hi, how are you?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.18
+      },
+      {
+        "text": "Tell me a joke.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.172
+      },
+      {
+        "text": "Thanks, that's all for now.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.164
+      },
+      {
+        "text": "Good morning!",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.17
+      },
+      {
+        "text": "You sound great today.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.174
+      },
+      {
+        "text": "I talked to Claude yesterday.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.188
+      },
+      {
+        "text": "Do you think tabs or spaces are better?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.158
+      },
+      {
+        "text": "What can you do?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.194
+      },
+      {
+        "text": "Can you tell me a fun fact?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.152
+      },
+      {
+        "text": "Is Python faster than JavaScript?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.177
+      },
+      {
+        "text": "What should I work on next?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.162
+      },
+      {
+        "text": "Make it shorter next time.",
+        "expected": "CHAT",
+        "got": "?MAKE",
+        "seconds": 0.196
+      }
+    ]
+  },
+  "framed": {
+    "accuracy": 0.675,
+    "chat_sent_to_claude": 4,
+    "claude_kept_as_chat": 9,
+    "unparseable": 0,
+    "median_s": 0.185,
+    "max_s": 0.2,
+    "rows": [
+      {
+        "text": "Add a dark mode toggle to the settings page.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.195
+      },
+      {
+        "text": "Fix the failing test.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.193
+      },
+      {
+        "text": "Commit my changes and push them.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.186
+      },
+      {
+        "text": "Rename the function load to load_model everywhere.",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.18
+      },
+      {
+        "text": "Write a README for this project.",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.178
+      },
+      {
+        "text": "Run the benchmark again.",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.178
+      },
+      {
+        "text": "Delete the unused imports in the agent file.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.187
+      },
+      {
+        "text": "Update the version number to 0.3.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.197
+      },
+      {
+        "text": "Can you make the button blue?",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.17
+      },
+      {
+        "text": "Could you add a test for the delegate?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.192
+      },
+      {
+        "text": "I think the build is broken.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.196
+      },
+      {
+        "text": "The orb is lagging behind the voice, can you look into it?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.183
+      },
+      {
+        "text": "Why are the tests failing?",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.194
+      },
+      {
+        "text": "What does the delegate module do?",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.177
+      },
+      {
+        "text": "Which branch am I on?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.2
+      },
+      {
+        "text": "How many TODOs are left in the code?",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.2
+      },
+      {
+        "text": "Remind me what we changed today.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.191
+      },
+      {
+        "text": "Is the daemon running?",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.182
+      },
+      {
+        "text": "What's in my downloads folder?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.19
+      },
+      {
+        "text": "Did the last commit get pushed?",
+        "expected": "CLAUDE",
+        "got": "CHAT",
+        "seconds": 0.177
+      },
+      {
+        "text": "What's the capital of Japan?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.187
+      },
+      {
+        "text": "What's seven times eight?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.194
+      },
+      {
+        "text": "Explain what a hash map is.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.185
+      },
+      {
+        "text": "How does async work in Python?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.18
+      },
+      {
+        "text": "What's the difference between a list and a tuple?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.179
+      },
+      {
+        "text": "Who wrote Pride and Prejudice?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.178
+      },
+      {
+        "text": "How do I say thank you in Japanese?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.179
+      },
+      {
+        "text": "What's a good name for a cat?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.187
+      },
+      {
+        "text": "Hi, how are you?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.184
+      },
+      {
+        "text": "Tell me a joke.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.183
+      },
+      {
+        "text": "Thanks, that's all for now.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.173
+      },
+      {
+        "text": "Good morning!",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.176
+      },
+      {
+        "text": "You sound great today.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.191
+      },
+      {
+        "text": "I talked to Claude yesterday.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.199
+      },
+      {
+        "text": "Do you think tabs or spaces are better?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.191
+      },
+      {
+        "text": "What can you do?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.174
+      },
+      {
+        "text": "Can you tell me a fun fact?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.182
+      },
+      {
+        "text": "Is Python faster than JavaScript?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.183
+      },
+      {
+        "text": "What should I work on next?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.182
+      },
+      {
+        "text": "Make it shorter next time.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.189
+      }
+    ]
+  },
+  "framed few-shot": {
+    "accuracy": 0.625,
+    "chat_sent_to_claude": 15,
+    "claude_kept_as_chat": 0,
+    "unparseable": 0,
+    "median_s": 0.171,
+    "max_s": 0.184,
+    "rows": [
+      {
+        "text": "Add a dark mode toggle to the settings page.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.171
+      },
+      {
+        "text": "Fix the failing test.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.178
+      },
+      {
+        "text": "Commit my changes and push them.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.18
+      },
+      {
+        "text": "Rename the function load to load_model everywhere.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.179
+      },
+      {
+        "text": "Write a README for this project.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.174
+      },
+      {
+        "text": "Run the benchmark again.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.166
+      },
+      {
+        "text": "Delete the unused imports in the agent file.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.174
+      },
+      {
+        "text": "Update the version number to 0.3.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.169
+      },
+      {
+        "text": "Can you make the button blue?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.177
+      },
+      {
+        "text": "Could you add a test for the delegate?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.171
+      },
+      {
+        "text": "I think the build is broken.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.175
+      },
+      {
+        "text": "The orb is lagging behind the voice, can you look into it?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.172
+      },
+      {
+        "text": "Why are the tests failing?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.171
+      },
+      {
+        "text": "What does the delegate module do?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.173
+      },
+      {
+        "text": "Which branch am I on?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.172
+      },
+      {
+        "text": "How many TODOs are left in the code?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.165
+      },
+      {
+        "text": "Remind me what we changed today.",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.168
+      },
+      {
+        "text": "Is the daemon running?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.179
+      },
+      {
+        "text": "What's in my downloads folder?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.172
+      },
+      {
+        "text": "Did the last commit get pushed?",
+        "expected": "CLAUDE",
+        "got": "CLAUDE",
+        "seconds": 0.17
+      },
+      {
+        "text": "What's the capital of Japan?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.168
+      },
+      {
+        "text": "What's seven times eight?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.173
+      },
+      {
+        "text": "Explain what a hash map is.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.168
+      },
+      {
+        "text": "How does async work in Python?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.171
+      },
+      {
+        "text": "What's the difference between a list and a tuple?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.161
+      },
+      {
+        "text": "Who wrote Pride and Prejudice?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.17
+      },
+      {
+        "text": "How do I say thank you in Japanese?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.184
+      },
+      {
+        "text": "What's a good name for a cat?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.164
+      },
+      {
+        "text": "Hi, how are you?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.179
+      },
+      {
+        "text": "Tell me a joke.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.171
+      },
+      {
+        "text": "Thanks, that's all for now.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.155
+      },
+      {
+        "text": "Good morning!",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.167
+      },
+      {
+        "text": "You sound great today.",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.164
+      },
+      {
+        "text": "I talked to Claude yesterday.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.168
+      },
+      {
+        "text": "Do you think tabs or spaces are better?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.164
+      },
+      {
+        "text": "What can you do?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.17
+      },
+      {
+        "text": "Can you tell me a fun fact?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.168
+      },
+      {
+        "text": "Is Python faster than JavaScript?",
+        "expected": "CHAT",
+        "got": "CHAT",
+        "seconds": 0.159
+      },
+      {
+        "text": "What should I work on next?",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.176
+      },
+      {
+        "text": "Make it shorter next time.",
+        "expected": "CHAT",
+        "got": "CLAUDE",
+        "seconds": 0.17
+      }
+    ]
+  }
+}
