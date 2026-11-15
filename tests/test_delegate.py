@@ -47,6 +47,9 @@ def test_success_speaks_the_spoken_line_and_keeps_the_full_reply(fake):
     assert args[:2] == ["-p", "add a dark mode toggle"] and "--resume" not in args
     assert args[args.index("--output-format") + 1] == "json"
     assert "SPOKEN:" in args[args.index("--append-system-prompt") + 1]
+    allowed = args[args.index("--allowedTools") + 1:]
+    assert "Bash(pytest:*)" in allowed and "Bash(npm test:*)" in allowed
+    assert all(rule.startswith("Bash(") for rule in allowed)  # test runners only, nothing broader
 
 
 def test_a_follow_up_continues_the_same_claude_session(fake):

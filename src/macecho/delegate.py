@@ -18,6 +18,10 @@ INSTRUCTIONS = (
     f"Finish with one last line that starts with {SPOKEN} and says what you did in one or two "
     "short, plain sentences: no code, file paths, lists or markdown."
 )
+# Commands Claude may run without asking: test runners only, so it can check its own work.
+# Everything else stays refused in a headless run (acceptEdits allows edits, not commands).
+TEST_COMMANDS = ("pytest", "python -m pytest", "python3 -m pytest", "uv run pytest", "npm test",
+                 "npm run test", "pnpm test", "yarn test", "go test", "cargo test", "swift test")
 
 
 @dataclass
@@ -48,7 +52,8 @@ class Delegate:
 
     async def run(self, request: str) -> Result:
         args = [*self.command, "-p", request, "--output-format", "json",
-                "--permission-mode", self.permission_mode, "--append-system-prompt", INSTRUCTIONS]
+                "--permission-mode", self.permission_mode, "--append-system-prompt", INSTRUCTIONS,
+                "--allowedTools", *(f"Bash({command}:*)" for command in TEST_COMMANDS)]
         if self.session_id:
             args += ["--resume", self.session_id]
         start = time.monotonic()
@@ -76,3 +81,4 @@ class Delegate:
         ok = proc.returncode == 0 and not data.get("is_error")
         spoken = spoken_summary(text) if ok else "Claude Code ran into a problem. The details are on screen."
         return Result(ok, spoken, text, seconds, data.get("total_cost_usd") or 0.0, self.session_id)
+
