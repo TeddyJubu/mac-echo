@@ -92,3 +92,10 @@ def test_without_a_project_folder_there_is_no_tool():
     client = FakeClient((["Hi."], [text("Hi.")]))
     collect(Brain(client, can_delegate=False).reply("Hi"))
     assert client.calls[0]["tools"] == [] and "no project folder" in client.calls[0]["system"]
+
+
+def test_a_blank_base_url_in_the_environment_falls_back_to_anthropic(monkeypatch):
+    # Shells started by Claude Code export ANTHROPIC_BASE_URL="", which the SDK would take as the server.
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    assert str(Brain().client.base_url).startswith("https://api.anthropic.com")

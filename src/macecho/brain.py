@@ -53,8 +53,13 @@ class Brain:
 
     def __init__(self, client=None, model: str = MODEL, can_delegate: bool = True):
         if client is None:
+            import os
+
             import anthropic  # the brain extra; reads ANTHROPIC_API_KEY
-            client = anthropic.AsyncAnthropic()
+            # A blank ANTHROPIC_BASE_URL (Claude Code's shells export one) would replace the server,
+            # and passing None makes the SDK read that same blank variable again.
+            base_url = os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
+            client = anthropic.AsyncAnthropic(base_url=base_url)
         self.client, self.model = client, model
         self.tools = [START_TASK] if can_delegate else []
         self.system = SYSTEM + (DELEGATING if can_delegate else ALONE)
