@@ -491,6 +491,7 @@ class Agent:
             if isinstance(item, Task):
                 self._start_task(item)
             else:
+                print(f"🗣  {item}", flush=True)
                 await self._speak(item, since)
                 since = None
 

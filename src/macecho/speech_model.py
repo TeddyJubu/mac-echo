@@ -13,7 +13,10 @@ SYSTEM_PROMPT = ("Respond with interleaved text and audio.\n\n"
 ASR_PROMPT = "Perform ASR."  # LFM3's trained transcription trigger (auto-detects language)
 # Read the user message aloud. Checked 2026-11-14 with generation_mode="audio": at most one word off
 # per sentence when transcribed back, first audio after a median 0.32 s (docs/superpowers/specs).
-TTS_PROMPT = "Perform TTS."
+# The voice must be named: with "Perform TTS." alone, LFM3 picks one per call, so a reply read
+# sentence by sentence switched between a man and a woman (125 Hz vs 190-214 Hz, 2026-11-15).
+# The model card's form; "male" works too.
+TTS_PROMPT = "Perform TTS in American English using a female voice."
 
 
 class SpeechModel:
