@@ -74,6 +74,7 @@ reply=$(macecho converse "Done. The build passes. Anything else?")
 | `macecho converse "text" [--timeout S] [--json]` | `say`, then `listen`, in one call. |
 | `macecho status` | JSON: running, pid, model, voice, input and output device, idle minutes left. Never starts the daemon. |
 | `macecho stop` | Stops the daemon and frees the model's memory. |
+| `macecho show` | Opens the MacEcho window, which shows when the agent is listening and speaking. Loads no second model; needs the `[app]` extras. |
 | `macecho guide` | Prints the guide for agents. |
 | `macecho install-skill [--force]` | Installs, or with `--force` refreshes, the Claude Code skill. |
 

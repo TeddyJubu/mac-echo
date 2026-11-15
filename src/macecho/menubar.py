@@ -15,6 +15,7 @@ voice mode. It loads no model and opens no mic; the daemon owns both and streams
 """
 
 import asyncio
+import fcntl
 import gc
 import json
 import socket
@@ -339,7 +340,22 @@ class ViewerApp(MacEchoApp):
         pass  # no controls in the viewer; Return in the page does nothing
 
 
+def take_viewer_lock():
+    """The open viewer's lock, or None if a viewer already holds it. Keep it until exit."""
+    protocol.runtime_dir().mkdir(parents=True, exist_ok=True)
+    lock = open(protocol.viewer_lock_path(), "a")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return lock
+    except BlockingIOError:
+        lock.close()
+        return None
+
+
 def main():
+    viewer = "--view" in sys.argv
+    if viewer and not (lock := take_viewer_lock()):  # noqa: F841 (held for the process's life)
+        return  # a window is already open
     nsapp = NSApplication.sharedApplication()
     nsapp.setActivationPolicy_(0)  # regular app: Dock icon and key windows, also under python -m
     # rumps builds no main menu, and without one Cmd-Q and Cmd-W do nothing.
@@ -348,7 +364,7 @@ def main():
     app_menu.addItemWithTitle_action_keyEquivalent_("Quit MacEcho", "terminate:", "q")
     menu.addItemWithTitle_action_keyEquivalent_("", None, "").setSubmenu_(app_menu)
     nsapp.setMainMenu_(menu)
-    (ViewerApp if "--view" in sys.argv else MacEchoApp)().run()
+    (ViewerApp if viewer else MacEchoApp)().run()
 
 
 if __name__ == "__main__":

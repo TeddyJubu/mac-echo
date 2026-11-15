@@ -44,13 +44,24 @@ class LfmVoice:
         if not parts:
             return
         rate = self.speech.model.codec().config.sampling_rate
+        start, samples, dry = time.monotonic(), 0, 0
         # Leaving the block stops the stream, which waits for queued audio to finish playing.
-        with sd.OutputStream(samplerate=rate, channels=1, dtype="float32") as out:
+        # latency: write() returns while this much is still queued, so generating the next chunk
+        # (~0.1 s per 0.32 s of speech) happens while the speaker plays. At the default (~10 ms)
+        # every chunk ran dry first: about 40 dropouts in 13 s of speech.
+        with sd.OutputStream(samplerate=rate, channels=1, dtype="float32", latency=0.5) as out:
             for sentence in parts:
                 for chunk in self.speech.tts(sentence):
                     if self.live:
+                        # ponytail: queued up to 0.5 s ahead, so the orb can lead the sound by ~0.2 s;
+                        # add out.latency to the start time if that ever looks off.
                         self.live.saying = (chunk, time.monotonic(), rate)
-                    out.write(chunk.reshape(-1, 1))
+                    # write() reports an underflow: the speaker ran dry before this chunk came,
+                    # which the user hears as the voice dropping out.
+                    dry += bool(out.write(chunk.reshape(-1, 1)))
+                    samples += chunk.size
+        print(f"spoke {samples / rate:.1f}s in {time.monotonic() - start:.1f}s, "
+              f"{len(parts)} sentences, {dry} dropouts", flush=True)
 
 
 def make(name: str, speech_model, live=None):

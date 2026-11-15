@@ -234,3 +234,14 @@ def test_viewer_follows_the_daemon_through_a_restart(monkeypatch, tmp_path):
     wait_for(viewer, "off")
     daemon("replying")               # Claude Code starts a new one
     wait_for(viewer, "replying")
+
+
+def test_only_one_viewer_holds_the_window_lock(monkeypatch):
+    import tempfile
+
+    monkeypatch.setenv("MACECHO_RUNTIME_DIR", tempfile.mkdtemp(prefix="me"))
+    first = menubar.take_viewer_lock()
+    assert first is not None
+    assert menubar.take_viewer_lock() is None  # a second `--view` exits instead of opening a window
+    first.close()  # the first window quit
+    assert menubar.take_viewer_lock() is not None

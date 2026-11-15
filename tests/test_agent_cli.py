@@ -400,3 +400,24 @@ def test_an_engine_without_live_state_gets_no_live_socket(runtime):
     assert not protocol.live_path().exists()
     ask({"op": "stop"})
     thread.join(5)
+
+
+# --- macecho show: the window for Claude Code's voice mode ---
+
+def test_show_opens_the_window_once(runtime):
+    import fcntl
+
+    opened = []
+    assert cli.show(spawn=lambda: opened.append(1)) == 0 and opened == [1]
+    with open(protocol.viewer_lock_path(), "a") as window:  # a window is now open and holds it
+        fcntl.flock(window, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert cli.show(spawn=lambda: opened.append(1)) == 0 and opened == [1]  # no second window
+    assert cli.show(spawn=lambda: opened.append(1)) == 0 and opened == [1, 1]  # closed: opens again
+
+
+def test_show_explains_missing_app_extras_instead_of_opening_nothing(runtime, capsys, monkeypatch):
+    real = cli.importlib.util.find_spec
+    monkeypatch.setattr(cli.importlib.util, "find_spec", lambda name: None if name == "rumps" else real(name))
+    opened = []
+    assert cli.show(spawn=lambda: opened.append(1)) == 1 and not opened
+    assert "[app]" in capsys.readouterr().err

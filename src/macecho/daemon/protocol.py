@@ -31,6 +31,15 @@ def lock_path() -> Path:
     return runtime_dir() / "daemon.lock"
 
 
+def viewer_lock_path() -> Path:
+    """Held by the open window (menubar --view), so `macecho show` never opens a second one."""
+    return runtime_dir() / "viewer.lock"
+
+
+def app_log_path() -> Path:
+    return Path.home() / "Library/Logs/MacEcho.log"
+
+
 def log_path() -> Path:
     return Path.home() / "Library/Logs/MacEcho-daemon.log"
 
