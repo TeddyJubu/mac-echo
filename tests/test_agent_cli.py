@@ -336,3 +336,67 @@ def test_install_skill_force_overwrites_and_guide_prints_the_guide(home, capsys)
     capsys.readouterr()
     assert cli.main(["guide"]) == 0
     assert "Exit codes" in capsys.readouterr().out
+
+
+# --- live state, for a window drawing the orb while Claude Code talks through the daemon ---
+
+def tone(rate, seconds, amplitude=0.5):
+    return (amplitude * np.sin(2 * np.pi * 440 * np.arange(int(rate * seconds)) / rate)).astype(np.float32)
+
+
+def test_live_snapshot_shows_what_is_heard_and_what_is_being_said():
+    from macecho.daemon.engine import Live
+
+    live = Live()
+    quiet = live.snapshot()
+    assert quiet["state"] == "off" and quiet["mic"] == quiet["speaker"] == 0.0
+    assert len(quiet["bands"]) == Live.BARS and not any(quiet["bands"])
+
+    live.heard = (tone(16000, 0.032) * 32767).astype(np.int16)  # one loud 32 ms mic frame
+    live.saying = (tone(24000, 1.0), time.monotonic(), 24000)   # a 1 s chunk that began now
+    loud = live.snapshot()
+    assert loud["mic"] > 0.5 and loud["speaker"] > 0.5 and max(loud["bands"]) > 0.5
+    json.dumps(loud)  # plain floats: it goes over the socket as JSON
+
+    live.saying = (tone(24000, 1.0), time.monotonic() - 2, 24000)  # that chunk finished a second ago
+    assert live.snapshot()["speaker"] == 0.0
+
+
+def test_live_socket_keeps_reporting_while_a_listen_holds_the_daemon(runtime):
+    from macecho.daemon.engine import Live
+
+    started, release = threading.Event(), threading.Event()
+
+    class ListeningEngine(FakeEngine):
+        live = Live()
+
+        def listen(self, timeout):
+            self.live.state = "listening"
+            started.set()
+            release.wait(5)  # the user hasn't spoken yet
+            self.live.state = "off"
+            return super().listen(timeout)
+
+    thread = start(ListeningEngine(), idle_minutes=0)
+    asking = threading.Thread(target=ask, args=({"op": "listen", "timeout": 5},), daemon=True)
+    asking.start()
+    assert started.wait(5)
+    with socket.socket(socket.AF_UNIX) as window:
+        window.connect(str(protocol.live_path()))
+        states = {protocol.recv(window)["state"] for _ in range(3)}  # ~150 ms of lines
+        assert states == {"listening"}  # answered while listen() still holds the main thread
+        release.set()
+        asking.join(5)
+        deadline = time.time() + 2
+        while protocol.recv(window)["state"] != "off":
+            assert time.time() < deadline, "live state never went back to off"
+    assert ask({"op": "stop"}) == {"ok": True}
+    thread.join(5)
+    assert not thread.is_alive() and not protocol.live_path().exists()
+
+
+def test_an_engine_without_live_state_gets_no_live_socket(runtime):
+    thread = start(FakeEngine(), idle_minutes=0)
+    assert not protocol.live_path().exists()
+    ask({"op": "stop"})
+    thread.join(5)

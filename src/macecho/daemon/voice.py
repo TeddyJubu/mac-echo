@@ -5,6 +5,7 @@ which read aloud as noise; code belongs on screen.
 """
 import re
 import subprocess
+import time
 
 
 def speakable(text: str) -> str:
@@ -33,8 +34,8 @@ class SystemVoice:
 class LfmVoice:
     """LFM3 reading the text aloud (audio-only mode), streamed to the speaker as it's generated."""
 
-    def __init__(self, speech_model):
-        self.speech = speech_model
+    def __init__(self, speech_model, live=None):
+        self.speech, self.live = speech_model, live  # live: engine.Live, so a window can draw the reply
 
     def speak(self, text: str) -> None:
         import sounddevice as sd
@@ -47,12 +48,14 @@ class LfmVoice:
         with sd.OutputStream(samplerate=rate, channels=1, dtype="float32") as out:
             for sentence in parts:
                 for chunk in self.speech.tts(sentence):
+                    if self.live:
+                        self.live.saying = (chunk, time.monotonic(), rate)
                     out.write(chunk.reshape(-1, 1))
 
 
-def make(name: str, speech_model):
+def make(name: str, speech_model, live=None):
     if name == "lfm3":
-        return LfmVoice(speech_model)
+        return LfmVoice(speech_model, live)
     if name == "system":
         return SystemVoice()
     raise ValueError(f"MACECHO_VOICE must be lfm3 or system, not {name!r}")

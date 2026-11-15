@@ -22,6 +22,11 @@ def socket_path() -> Path:
     return runtime_dir() / "daemon.sock"
 
 
+def live_path() -> Path:
+    """Where a window reads what the daemon is doing: one JSON line about every 50 ms."""
+    return runtime_dir() / "live.sock"
+
+
 def lock_path() -> Path:
     return runtime_dir() / "daemon.lock"
 
