@@ -22,6 +22,8 @@ dependencies = [
 # The menu bar and Dock app (macecho.menubar); the legacy ASR/LLM/TTS stack stays in requirements.txt.
 # AVFoundation: echo cancellation (macecho.device.voice_io); without it the app runs without.
 app = ["rumps", "pyobjc-framework-WebKit", "pyobjc-framework-AVFoundation", "pydantic-settings>=2"]
+# MACECHO_BRAIN=haiku (macecho.brain): Claude Haiku thinks; LFM3 still hears and speaks.
+brain = ["anthropic>=2.8"]
 
 [project.scripts]
 macecho = "macecho.cli:main"
