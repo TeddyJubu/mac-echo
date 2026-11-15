@@ -194,12 +194,6 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/
   - `src/macecho/agent.py`: the streaming pipeline the app uses.
 - **Design docs:** `docs/superpowers/` holds the agent CLI's spec and implementation plan.
 
-### The original pipeline
-
-Originally, MacEcho chained SenseVoice speech recognition, a Qwen LLM via MLX and CosyVoice
-text-to-speech. That code is still in `src/macecho/` (`asr/`, `llm/`, `tts/`) for reference, but the
-app no longer uses it.
-
 ## Troubleshooting
 
 - **No sound from replies.** Replies go to the current default output device, checked each time

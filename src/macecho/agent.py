@@ -19,14 +19,6 @@ from macecho.brain import Stop, Task
 from macecho.delegate import Delegate
 from macecho.vad.vad import VadProcessor
 from macecho.vad.interface import VadState
-from macecho.sentencizer import LLMSentencizer
-from macecho.message import (
-    MessageType, MessagePriority,
-    create_interrupt_message, create_asr_response,
-    create_llm_request, create_llm_response,
-    create_tts_request, create_tts_response,
-    create_status_message, create_error_message
-)
 
 CANT_THINK = "I can't reach Claude right now."
 
@@ -51,27 +43,15 @@ async def _prefetched(first, items):
 class Agent:
     def __init__(self, config: MacEchoConfig, speech=None):
         self.config = config
-        self.asr = None
-        self.tts = None
         self.vad = None
         self.audio_player = None
         self.audio_recorder = None
         self.voice_io = None  # Apple's echo-cancelling engine, while a session has it open
         self.last_input = np.zeros(0, np.int16)  # newest microphone block, for the UI's level meter
 
-        # Initialize LLM Sentencizer for streaming sentence processing
-        self.sentencizer = LLMSentencizer(
-            newline_as_separator=True,
-            strip_newlines=True
-        )
-
         # Processing state management
         self.current_llm_task = None
-        self.current_tts_tasks = []  # List to track multiple TTS tasks
         self.processing_correlation_id = None  # Track current processing session
-
-        # Message queue for internal communication
-        self.message_queue = asyncio.Queue()
 
         # Initialize VAD processor with mapped config
         from macecho.vad.vad import VadConfig
@@ -86,7 +66,6 @@ class Agent:
         )
         self.vad = VadProcessor(vad_config)
 
-        self.llm = None
         self.speech = speech  # preloaded SpeechModel (menu bar app reuses it across start/stop)
         if speech is None:
             from macecho.speech_model import SpeechModel
@@ -284,21 +263,10 @@ class Agent:
                   f"({len(speech_segment)/self.config.audio_recording.sample_rate:.2f}s) "
                   f"[{correlation_id[:8]}]")
 
-            if self.speech:
-                # Not awaited: the mic loop keeps running so VAD can hear a barge-in, and
-                # _cancel_ongoing_processing() cancels this via current_llm_task.
-                self.current_llm_task = asyncio.create_task(
-                    self._process_with_brain(speech_segment, correlation_id))
-                return
-
-            # Step 1: ASR processing
-            transcribed_text = await self._process_asr(speech_segment, correlation_id)
-            if not transcribed_text.strip():
-                print("ASR: No text transcribed, skipping LLM/TTS")
-                return
-
-            # Step 2: LLM processing with streaming sentencizer
-            await self._process_llm_streaming(transcribed_text, correlation_id)
+            # Not awaited: the mic loop keeps running so VAD can hear a barge-in, and
+            # _cancel_ongoing_processing() cancels this via current_llm_task.
+            self.current_llm_task = asyncio.create_task(
+                self._process_with_brain(speech_segment, correlation_id))
 
         except asyncio.CancelledError:
             print(
@@ -306,14 +274,6 @@ class Agent:
             raise
         except Exception as e:
             print(f"Error processing speech segment: {e}")
-            # Send error message
-            error_msg = create_error_message(
-                "SpeechProcessingError",
-                str(e),
-                "agent",
-                True
-            )
-            await self.message_queue.put(error_msg)
 
     async def _cancel_ongoing_processing(self):
         """Cancel any ongoing LLM and TTS processing"""
@@ -329,24 +289,9 @@ class Agent:
                 pass
             self.current_llm_task = None
 
-        # Cancel all current TTS tasks
-        if self.current_tts_tasks:
-            print(f"   Cancelling {len(self.current_tts_tasks)} TTS tasks...")
-            for tts_task in self.current_tts_tasks:
-                if not tts_task.done():
-                    tts_task.cancel()
-
-            # Wait for all TTS tasks to be cancelled
-            await asyncio.gather(*self.current_tts_tasks, return_exceptions=True)
-            self.current_tts_tasks.clear()
-
         # Clear audio player queue
         print("   Clearing audio player queue...")
         await self._clear_audio_queue()
-
-        # Send interrupt message
-        interrupt_msg = create_interrupt_message("new_asr_input", "vad")
-        await self.message_queue.put(interrupt_msg)
 
     async def _clear_audio_queue(self):
         """Clear the audio player queue"""
@@ -454,239 +399,6 @@ class Agent:
             with contextlib.suppress(asyncio.CancelledError):
                 await speaking
 
-    async def _process_asr(self, speech_segment: np.ndarray, correlation_id: str) -> str:
-        """Process ASR for speech segment"""
-        if not (self.asr and self.asr.is_ready()):
-            print("ASR: Not available or not ready")
-            return ""
-
-        try:
-            print("ASR: Starting async transcription...")
-            # Convert numpy array to bytes for ASR processing
-            if speech_segment.dtype == np.float32:
-                # Convert float32 to int16 for ASR
-                audio_int16 = (speech_segment * 32767).astype(np.int16)
-                audio_bytes = audio_int16.tobytes()
-            else:
-                audio_bytes = speech_segment.tobytes()
-
-            # Use async transcribe to avoid blocking the main thread
-            transcribed_text = await self.asr.transcribe(audio_bytes)
-            print(f"ASR: {transcribed_text}")
-
-            # Send ASR response message
-            asr_response = create_asr_response(
-                transcribed_text,
-                0.95,  # Placeholder confidence
-                1.0,   # Placeholder processing time
-                correlation_id
-            )
-            await self.message_queue.put(asr_response)
-
-            return transcribed_text
-        except Exception as e:
-            print(f"ASR Error: {e}")
-            return ""
-
-    async def _process_llm_streaming(self, text: str, correlation_id: str):
-        """Process LLM with streaming output and real-time sentence processing"""
-        if not self.llm:
-            print("LLM: Not available")
-            return
-
-        try:
-            print(f"LLM: Starting streaming processing for '{text}'")
-
-            # Reset sentencizer for new conversation
-            # Use traditional punctuation-based detection since MLX may not output newlines
-            self.sentencizer = LLMSentencizer(
-                newline_as_separator=True,  # Use punctuation for MLX models
-                strip_newlines=True
-            )
-
-            # Create LLM streaming task
-            llm_task = asyncio.create_task(
-                self._stream_llm_response(text, correlation_id)
-            )
-            self.current_llm_task = llm_task
-
-            await llm_task
-
-        except asyncio.CancelledError:
-            print("LLM: Streaming processing cancelled")
-            raise
-        except Exception as e:
-            print(f"LLM Streaming Error: {e}")
-        finally:
-            self.current_llm_task = None
-
-    async def _stream_llm_response(self, text: str, correlation_id: str):
-        """Stream LLM response and process sentences in real-time"""
-        try:
-
-            print("LLM: Starting streaming generation...")
-
-            # Use chat_with_context for better conversation management
-            stream_generator = self.llm.chat_with_context(
-                user_message=text,
-                max_tokens=1000,
-                temperature=0.7,
-                stream=True
-            )
-
-            sentence_count = 0
-
-            # Process streaming chunks
-            for chunk_dict in stream_generator:
-                # Check for cancellation
-                if asyncio.current_task().cancelled():
-                    print("LLM: Stream cancelled")
-                    break
-
-                # Extract content from the chunk dictionary
-                if chunk_dict and chunk_dict.get("choices"):
-                    delta = chunk_dict["choices"][0].get("delta", {})
-                    content = delta.get("content")
-
-                    if content:
-                        # Process chunk through sentencizer (using punctuation detection)
-                        sentences = self.sentencizer.process_chunk(content)
-
-                        # Send each complete sentence to TTS immediately
-                        for sentence in sentences:
-                            if sentence.strip():
-                                sentence_count += 1
-                                print(
-                                    f"LLM → TTS[{sentence_count}]: '{sentence[:50]}'")
-
-                                # Create TTS task for this sentence
-                                tts_task = asyncio.create_task(
-                                    self._process_single_tts(
-                                        sentence, correlation_id, sentence_count - 1)
-                                )
-                                self.current_tts_tasks.append(tts_task)
-
-            # Process any remaining content in sentencizer buffer
-            remaining_sentences = self.sentencizer.finish()
-            for sentence in remaining_sentences:
-                if sentence.strip():
-                    sentence_count += 1
-                    print(
-                        f"LLM → TTS[{sentence_count}] (final): '{sentence[:50]}'")
-
-                    tts_task = asyncio.create_task(
-                        self._process_single_tts(
-                            sentence, correlation_id, sentence_count - 1)
-                    )
-                    self.current_tts_tasks.append(tts_task)
-
-            print(
-                f"LLM: Streaming completed, {sentence_count} sentences sent to TTS")
-
-        except asyncio.CancelledError:
-            print("LLM: Stream processing cancelled")
-            raise
-        except Exception as e:
-            print(f"LLM Stream Error: {e}")
-            raise
-
-    async def _process_tts_sentences(self, text: str, correlation_id: str):
-        """Process TTS for text, split into sentences"""
-        # Simple sentence splitting (can be improved with proper sentence tokenizer)
-        sentences = self._split_into_sentences(text)
-        print(f"TTS: Processing {len(sentences)} sentences")
-
-        # Create TTS tasks for each sentence
-        tts_tasks = []
-        for i, sentence in enumerate(sentences):
-            if sentence.strip():
-                task = asyncio.create_task(
-                    self._process_single_tts(
-                        sentence.strip(), correlation_id, i)
-                )
-                tts_tasks.append(task)
-
-        # Store tasks for potential cancellation
-        self.current_tts_tasks = tts_tasks
-
-        try:
-            # Wait for all TTS tasks to complete
-            await asyncio.gather(*tts_tasks)
-        except asyncio.CancelledError:
-            print("TTS: All sentence processing cancelled")
-            raise
-        finally:
-            self.current_tts_tasks.clear()
-
-    def _split_into_sentences(self, text: str) -> list[str]:
-        """Simple sentence splitting"""
-        # Basic sentence splitting - can be improved with NLP libraries
-        import re
-        sentences = re.split(r'[.!?]+', text)
-        return [s.strip() for s in sentences if s.strip()]
-
-    async def _process_single_tts(self, sentence: str, correlation_id: str, sentence_index: int):
-        """Process TTS for a single sentence"""
-        try:
-            print(f"TTS[{sentence_index}]: Processing '{sentence[:50]}...'")
-
-            if not self.tts:
-                # Placeholder TTS processing when TTS is not available
-                print(
-                    f"TTS[{sentence_index}]: TTS not available, using placeholder")
-                await asyncio.sleep(1.0)
-
-                # Generate placeholder audio (sine wave)
-                sample_rate = self.config.audio_player.sample_rate
-                duration = min(len(sentence) * 0.1, 5.0)
-                samples = int(sample_rate * duration)
-                t = np.linspace(0, duration, samples)
-                frequency = 440 + sentence_index * 100
-                audio_data = (
-                    0.3 * np.sin(2 * np.pi * frequency * t)).astype(np.float32)
-
-                print(
-                    f"TTS[{sentence_index}]: Generated {duration:.1f}s placeholder audio")
-                await self.audio_player_queue.put(audio_data.tobytes())
-
-                # Send TTS response message
-                tts_response = create_tts_response(
-                    audio_data.tobytes(), duration, 1.0, correlation_id
-                )
-                await self.message_queue.put(tts_response)
-
-            else:
-                # Real CosyVoice TTS processing
-                print(f"TTS[{sentence_index}]: Synthesizing with CosyVoice...")
-
-                start_time = time.time()
-
-                # Use asyncio.to_thread to avoid blocking the event loop
-                audio_data = await asyncio.to_thread(self.tts.synthesize, sentence)
-
-                if audio_data:
-                    processing_time = time.time() - start_time
-                    print(
-                        f"TTS[{sentence_index}]: Synthesized in {processing_time:.2f}s, {len(audio_data)} bytes")
-
-                    # Send audio to player queue
-                    await self.audio_player_queue.put(audio_data)
-
-                    # Send TTS response message
-                    tts_response = create_tts_response(
-                        audio_data, processing_time, processing_time, correlation_id
-                    )
-                    await self.message_queue.put(tts_response)
-                else:
-                    print(
-                        f"TTS[{sentence_index}]: Synthesis failed, no audio generated")
-
-        except asyncio.CancelledError:
-            print(f"TTS[{sentence_index}]: Processing cancelled")
-            raise
-        except Exception as e:
-            print(f"TTS[{sentence_index}] Error: {e}")
-
     async def _save_debug_audio(self, speech_segment: np.ndarray):
         """
         Save speech segment to WAV file in debug mode
@@ -750,10 +462,6 @@ class Agent:
             if self.vad:
                 self.vad.reset()
 
-            # Release ASR resources if initialized
-            if self.asr:
-                self.asr.release()
-
             # Cancel any ongoing processing tasks
             if self.current_llm_task and not self.current_llm_task.done():
                 self.current_llm_task.cancel()
@@ -761,20 +469,6 @@ class Agent:
                     await self.current_llm_task
                 except asyncio.CancelledError:
                     pass
-
-            if self.current_tts_tasks:
-                for task in self.current_tts_tasks:
-                    if not task.done():
-                        task.cancel()
-                await asyncio.gather(*self.current_tts_tasks, return_exceptions=True)
-                self.current_tts_tasks.clear()
-
-            # Clear message queue
-            while not self.message_queue.empty():
-                try:
-                    self.message_queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    break
 
         except Exception as e:
             print(f"Error during agent stop: {e}")

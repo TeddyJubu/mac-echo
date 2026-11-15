@@ -4,7 +4,7 @@
 
 The 40 labelled requests below go through the real Brain, each as the first turn of a
 fresh call, one at a time on one shared connection (as in the app). LFM3, the speech model MacEcho used
-before, scored 78 % at best on them (benchmarks/router-lfm3-*.json). Needs ANTHROPIC_API_KEY and the network, so no
+before, scored 78 % at best on them. Needs ANTHROPIC_API_KEY and the network, so no
 sandbox; costs well under a cent.
 """
 import argparse

@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The menu bar and Dock app (macecho.menubar); the legacy ASR/LLM/TTS stack stays in requirements.txt.
+# The menu bar and Dock app (macecho.menubar).
 # AVFoundation: echo cancellation (macecho.device.voice_io); without it the app runs without.
 # anthropic: Claude Haiku is the app's brain (macecho.brain); it needs ANTHROPIC_API_KEY.
 app = ["rumps", "pyobjc-framework-WebKit", "pyobjc-framework-AVFoundation", "pydantic-settings>=2",

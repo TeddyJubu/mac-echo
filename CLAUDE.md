@@ -31,9 +31,6 @@ Core modules:
 - `config.py`: Pydantic Settings (`MACECHO_` env vars, `.env`, defaults).
 - `agent_guide.md`: what `macecho guide` prints and the Claude Code skill installs.
 
-**Legacy:** `asr/` (SenseVoice), `llm/` (Qwen via MLX, OpenAI), `tts/` (CosyVoice, Kokoro),
-`sentencizer/`, `message/`. Nothing calls them any more; don't extend them.
-
 ## Commands
 
 ```bash
@@ -59,4 +56,5 @@ Design docs for the CLI live in `docs/superpowers/` (spec and plan).
 - **Freeing the model** needs `gc.collect()` and `mx.clear_cache()`; macOS then reclaims the GPU
   memory asynchronously (~3 s). Measure the footprint after a pause, or it looks like a leak.
 - **Benchmarks** swing with background load. Compare runs made back to back, not against old JSON.
-- **No echo cancellation yet:** on speakers the mic hears the replies; use headphones to test.
+- **Echo cancellation** (`device/voice_io.py`, Apple's voice processing) runs only on the Mac's own
+  speakers. With headphones it's skipped: it would move the input to the headphone jack.
