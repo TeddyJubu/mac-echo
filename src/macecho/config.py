@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
@@ -291,6 +291,15 @@ class MacEchoConfig(BaseSettings):
         default=None,
         description="End-to-end speech model repo (e.g. LiquidAI/LFM3-Audio-2B-MLX-4bit, "
                     "LiquidAI/LFM3-Omni-2B-MLX-8bit). When set, replaces the ASR/LLM/TTS pipeline.")
+    brain: Literal["lfm3", "haiku"] = Field(
+        default="lfm3",
+        description="Who thinks in the Mac app. lfm3: the speech model, local and offline. haiku: "
+                    "Claude Haiku via Anthropic's API (needs ANTHROPIC_API_KEY and the brain extra); "
+                    "LFM3 still hears and speaks, and the transcript text goes to Anthropic.")
+    brain_model: str = Field(default="claude-haiku-5-5", description="Claude model when brain is haiku.")
+    project_dir: Optional[str] = Field(
+        default=None,
+        description="Folder Claude Code works in when the haiku brain hands it a task. Unset: no hand-overs.")
 
     model_config = SettingsConfigDict(
         env_prefix="MACECHO_",

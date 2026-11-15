@@ -14,6 +14,9 @@ from macecho.utils.queue import QueueIterator
 import numpy as np
 import collections
 
+import contextlib
+from macecho.brain import Task
+from macecho.delegate import Delegate
 from macecho.vad.vad import VadProcessor
 from macecho.vad.interface import VadState
 from macecho.sentencizer import LLMSentencizer
@@ -24,6 +27,25 @@ from macecho.message import (
     create_tts_request, create_tts_response,
     create_status_message, create_error_message
 )
+
+CANT_THINK = "I can't reach Claude right now."
+
+
+def acknowledgement(heard: str) -> str | None:
+    """What LFM3 says the moment the user stops, while Haiku's reply is on its way (~1 s), or None
+    to stay quiet. `heard` is the user's transcribed words."""
+    # TODO(human)
+    return None
+
+
+async def _prefetched(first, items):
+    """`items`, whose first item is already being fetched in `first`, as one async iterator."""
+    try:
+        yield await first
+    except StopAsyncIteration:
+        return
+    async for item in items:
+        yield item
 
 
 class Agent:
@@ -75,6 +97,16 @@ class Agent:
             self.speech = SpeechModel(config.speech_model)
         else:
             self._init_legacy_pipeline(config)
+
+        self.brain = None  # Claude Haiku when MACECHO_BRAIN=haiku; LFM3 then only hears and speaks
+        self.delegates = {}  # Claude Code sessions by name, for the brain's start_task
+        self.background = set()  # running Claude Code tasks (held, or asyncio may drop them)
+        self.brain_lock = asyncio.Lock()  # one brain turn at a time: replies and reports share history
+        if config.brain == "haiku":
+            if self.speech is None:
+                raise ValueError("MACECHO_BRAIN=haiku needs MACECHO_SPEECH_MODEL: LFM3 hears and speaks for it")
+            from macecho.brain import Brain
+            self.brain = Brain(model=config.brain_model, can_delegate=bool(config.project_dir))
 
         self._init_audio_io(config)
 
@@ -307,8 +339,8 @@ class Agent:
             if self.speech:
                 # Not awaited: the mic loop keeps running so VAD can hear a barge-in, and
                 # _cancel_ongoing_processing() cancels this via current_llm_task.
-                self.current_llm_task = asyncio.create_task(
-                    self._process_speech_model(speech_segment, correlation_id))
+                handle = self._process_with_brain if self.brain else self._process_speech_model
+                self.current_llm_task = asyncio.create_task(handle(speech_segment, correlation_id))
                 return
 
             # Step 1: ASR processing
@@ -421,6 +453,83 @@ class Agent:
         print(f"🗣️  {text!r} ({played / 24000:.1f}s audio, done in {time.time() - start:.1f}s)")
         # Transcribe the user's turn for memory while the reply is still playing
         await asyncio.to_thread(self.speech.remember, audio, text)
+
+    async def _process_with_brain(self, speech_segment: np.ndarray, correlation_id: str):
+        """LFM3 hears, Claude Haiku thinks (and may hand work to Claude Code), LFM3 speaks."""
+        audio = speech_segment.astype(np.float32)
+        if speech_segment.dtype == np.int16:
+            audio /= 32768.0
+        start = time.time()
+        text = await asyncio.to_thread(self.speech.transcribe, audio)
+        print(f"👂 {text!r} after {time.time() - start:.2f}s")
+        if not text:
+            return
+        async with self.brain_lock:
+            items = self.brain.reply(text)
+            first = asyncio.ensure_future(anext(items))  # Haiku starts now, while the ack plays
+            try:
+                if ack := acknowledgement(text):
+                    await self._speak(ack, start)
+                    start = None
+                await self._speak_all(_prefetched(first, items), start)
+            except Exception as e:  # no key, no network, an API error: say so instead of going quiet
+                print(f"Brain error: {e}")
+                await self._speak(CANT_THINK)
+            finally:
+                first.cancel()  # a barge-in during the ack: don't leave the request running
+
+    async def _speak_all(self, items, since: float | None = None):
+        """One brain turn aloud: sentences in order; a hand-over starts Claude Code and moves on."""
+        async for item in items:
+            if isinstance(item, Task):
+                self._start_task(item)
+            else:
+                await self._speak(item, since)
+                since = None
+
+    async def _speak(self, sentence: str, since: float | None = None):
+        """One sentence in LFM3's voice, onto the player as it's generated. Cancelling stops it."""
+        loop, stop = asyncio.get_running_loop(), threading.Event()
+
+        def produce():
+            nonlocal since
+            for chunk in self.speech.tts(sentence, stop):
+                if stop.is_set():
+                    return
+                if since is not None:
+                    print(f"🔊 first audio after {time.time() - since:.2f}s")
+                    since = None
+                pcm = (np.clip(chunk, -1.0, 1.0) * 32767).astype(np.int16).tobytes()
+                loop.call_soon_threadsafe(self.audio_player_queue.put_nowait, pcm)
+
+        try:
+            await asyncio.to_thread(produce)
+        except asyncio.CancelledError:
+            stop.set()  # stops MLX generation within one step
+            raise
+
+    def _start_task(self, task: Task):
+        """Claude Code starts on it in the background; barge-ins never cancel this."""
+        if task.session not in self.delegates:
+            self.delegates[task.session] = Delegate(self.config.project_dir)
+        job = asyncio.create_task(self._run_task(self.delegates[task.session], task))
+        self.background.add(job)
+        job.add_done_callback(self.background.discard)
+
+    async def _run_task(self, delegate, task: Task):
+        print(f"🤖 {task.session}: {task.task}")
+        result = await delegate.run(task.task)
+        print(f"🤖 {task.session}: {'done' if result.ok else 'failed'} in {result.seconds:.0f}s, ${result.cost_usd:.2f}")
+        await self._deliver_report(task, result.text if result.ok else result.spoken)
+
+    async def _deliver_report(self, task: Task, text: str):
+        """Haiku tells the user how Claude's task went, once any reply being spoken has finished."""
+        # ponytail: also waits out a long reply; add a priority if reports start feeling late.
+        async with self.brain_lock:
+            speaking = asyncio.create_task(self._speak_all(self.brain.report(task, text)))
+            self.current_llm_task = speaking  # the user can talk over it, as over any reply
+            with contextlib.suppress(asyncio.CancelledError):
+                await speaking
 
     async def _process_asr(self, speech_segment: np.ndarray, correlation_id: str) -> str:
         """Process ASR for speech segment"""

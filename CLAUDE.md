@@ -20,6 +20,9 @@ Three ways in, sharing the same core:
 Core modules:
 - `speech_model.py`: `SpeechModel`, LFM3 chat, transcription (`Perform ASR.`) and TTS (`Perform TTS.`).
 - `agent.py`: the streaming pipeline the app uses (mic → 32 ms frames → VAD → LFM3 → speaker).
+- `brain.py`: with `MACECHO_BRAIN=haiku`, Claude Haiku thinks for the app (LFM3 still hears and
+  speaks) and hands work to Claude Code (`delegate.py`) in `MACECHO_PROJECT_DIR` through its one
+  tool, `start_task`. Needs `ANTHROPIC_API_KEY` and the `brain` extra. Default `lfm3` stays offline.
 - `vad/`: Silero VAD (`silero_vad.onnx`, onnxruntime, single-threaded on purpose).
 - `device/device.py`: `AudioRecorder`/`AudioPlayer` (sounddevice), plus `level`/`bands` for the orb.
   Audio devices are re-read at the start of every session.
