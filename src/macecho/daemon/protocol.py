@@ -7,7 +7,10 @@ import json
 import os
 from pathlib import Path
 
-DEFAULT_MODEL = "LiquidAI/LFM3-Audio-2B-MLX-4bit"
+# The models the daemon loads (macecho.speech_model): Fluid Speech Pro hears, ZONOS3-Mini speaks.
+EARS = "FluidVoice-Labs/fluid-speech-pro-mlx"
+VOICE_MODEL = "mlx-community/ZONOS3-Mini"
+DEFAULT_VOICE = "imogen"
 # Error kinds the client maps to their own exit codes; any other kind exits 1.
 ERRORS = {"timeout": 2, "mic_denied": 3}
 
@@ -22,8 +25,22 @@ def socket_path() -> Path:
     return runtime_dir() / "daemon.sock"
 
 
+def live_path() -> Path:
+    """Where a window reads what the daemon is doing: one JSON line about every 50 ms."""
+    return runtime_dir() / "live.sock"
+
+
 def lock_path() -> Path:
     return runtime_dir() / "daemon.lock"
+
+
+def viewer_lock_path() -> Path:
+    """Held by the open window (menubar --view), so `macecho show` never opens a second one."""
+    return runtime_dir() / "viewer.lock"
+
+
+def app_log_path() -> Path:
+    return Path.home() / "Library/Logs/MacEcho.log"
 
 
 def log_path() -> Path:

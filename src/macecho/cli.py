@@ -4,6 +4,7 @@
     macecho say      "text"                      speak (or pipe the text on stdin)
     macecho converse "text" [--timeout] [--json] say, then listen: one agent turn, one call
     macecho status | stop
+    macecho show                                  open the window that shows listening and speaking
     macecho guide                                 how an agent should hold the conversation
     macecho install-skill [--force]               add the Claude Code skill (done automatically)
 
@@ -15,6 +16,7 @@ Standard library only: this runs on every agent turn and must start instantly.
 """
 import argparse
 import fcntl
+import importlib.util
 import json
 import os
 import socket
@@ -81,6 +83,40 @@ def _daemon_running() -> bool:
         return False
 
 
+def _viewer_open() -> bool:
+    """The window holds viewer.lock while it is open (menubar.take_viewer_lock)."""
+    try:
+        with open(protocol.viewer_lock_path(), "a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return False
+    except BlockingIOError:
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def show(spawn=None) -> int:
+    """Open the window that draws the daemon's listening and speaking; return at once."""
+    if _viewer_open():
+        return 0
+    # find_spec locates without importing, so this stays instant; the window needs the app extras.
+    if not all(importlib.util.find_spec(name) for name in ("rumps", "WebKit")):
+        # An installed tool's __file__ is in its own site-packages, so the checkout isn't known here.
+        print("macecho: the window needs the app extras: "
+              "uv tool install --force '/path/to/mac-echo[app]'", file=sys.stderr)
+        return 1
+    if spawn:
+        spawn()
+        return 0
+    log = protocol.app_log_path()
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with open(log, "ab") as out:
+        # ponytail: shows as "Python" in the Dock; launching dist/MacEcho.app would show its icon.
+        subprocess.Popen([sys.executable, "-m", "macecho.menubar", "--view"], stdin=subprocess.DEVNULL,
+                         stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+    return 0
+
+
 def _spawn_daemon() -> None:
     log = protocol.log_path()
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -99,9 +135,9 @@ def _start_daemon(spawn, wait: float) -> socket.socket | None:
     """Start the daemon if none is starting, then wait for its socket."""
     if not _daemon_running():
         protocol.socket_path().unlink(missing_ok=True)  # a crashed daemon's leftover
-        repo = os.environ.get("MACECHO_SPEECH_MODEL", protocol.DEFAULT_MODEL)
-        print("Loading voice model…" if _model_cached(repo) else
-              "Downloading voice model (first run only, ~1–2 GB)…", file=sys.stderr, flush=True)
+        cached = all(_model_cached(repo) for repo in (protocol.EARS, protocol.VOICE_MODEL))
+        print("Loading voice models…" if cached else
+              "Downloading voice models (first run only, ~1.5 GB)…", file=sys.stderr, flush=True)
         spawn()
     deadline = time.monotonic() + wait
     while time.monotonic() < deadline:
@@ -160,6 +196,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("say", help="speak TEXT (or stdin)").add_argument("text", nargs="?")
     sub.add_parser("status", help="show the daemon's state as JSON")
     sub.add_parser("stop", help="stop the daemon and free the model's memory")
+    sub.add_parser("show", help="open the window that shows listening and speaking")
     sub.add_parser("guide", help="print how an agent should hold a voice conversation")
     sub.add_parser("install-skill", help="install the Claude Code skill").add_argument(
         "--force", action="store_true", help="overwrite an existing copy")
@@ -175,6 +212,8 @@ def main(argv=None) -> int:
             print(install_skill())
         return 0
     _auto_install_skill()
+    if args.command == "show":
+        return show()
     if args.command == "guide":
         print(GUIDE.read_text(), end="")
         return 0

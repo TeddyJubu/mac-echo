@@ -148,6 +148,7 @@ class AudioRecorder:
             # 使用上下文管理器确保流的正确关闭
             with self.stream:
                 self.is_running = True
+                self.dropouts, wrote = 0, 0.0
                 self.logger.info(
                     f'开始录音: 设备={self.device}, 采样率={self.samplerate}, '
                     f'块大小={self.blocksize}'
@@ -252,6 +253,7 @@ class AudioPlayer:
 
             with self.stream:
                 self.is_running = True
+                self.dropouts, wrote = 0, 0.0
                 self.logger.info(f'开始播放: 设备={self.device}')
                 self.stream.start()
 
@@ -268,8 +270,15 @@ class AudioPlayer:
                             try:
                                 # Blocking write runs off the event loop: inline, it froze the
                                 # loop (mic/VAD, task results) for the length of every chunk.
-                                self.playing = (data, time.monotonic())
-                                await asyncio.to_thread(self.stream.write, data)
+                                began = time.monotonic()
+                                self.playing = (data, began)
+                                dry = await asyncio.to_thread(self.stream.write, data)
+                                # The flag also covers the silence between replies; only a write
+                                # right after the last one means the voice cut out mid-sentence.
+                                if dry and began - wrote < 0.3:
+                                    self.dropouts += 1
+                                    print(f"🔈 speaker ran dry mid-speech ({self.dropouts} so far)", flush=True)
+                                wrote = time.monotonic()
                             except Exception as e:
                                 self.logger.error(f'写入音频数据错误: {e}')
                                 break

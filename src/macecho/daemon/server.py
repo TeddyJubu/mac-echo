@@ -3,10 +3,15 @@
 The engine does the real work (`listen(timeout) -> dict`, `say(text)`, `status() -> dict`) and
 raises EngineError for failures the client should report with a specific exit code. Requests are
 handled one after another on one thread, so two agents calling at once take turns for the mic.
+
+An engine with a `live` attribute (engine.Live) also gets a second socket, live.sock, served on
+its own threads: a window connects once and reads a JSON line about every 50 ms, even while a
+listen or say is holding the main thread.
 """
 import fcntl
 import os
 import socket
+import threading
 import time
 
 from macecho.daemon import protocol
@@ -60,6 +65,7 @@ def serve(engine, idle_minutes: float = 30, clock=time.monotonic, poll: float = 
     listener.bind(str(path))
     listener.listen()
     listener.settimeout(poll)  # wake up to check the idle deadline
+    live = _open_live(engine.live) if hasattr(engine, "live") else None
     last = clock()
     try:
         while not (idle_minutes and clock() - last > idle_minutes * 60):
@@ -75,8 +81,46 @@ def serve(engine, idle_minutes: float = 30, clock=time.monotonic, poll: float = 
     finally:
         listener.close()
         path.unlink(missing_ok=True)
+        if live:
+            live.close()  # its accept thread sees the closed socket within 0.2 s and ends
+            protocol.live_path().unlink(missing_ok=True)
         lock.close()
     return True
+
+
+def _open_live(state, every: float = 0.05):
+    """Bind live.sock and stream state.snapshot() to each window that connects."""
+    path = protocol.live_path()
+    path.unlink(missing_ok=True)
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    listener.bind(str(path))
+    listener.listen()
+    # close() from another thread doesn't reliably wake a blocked accept(); a timeout does.
+    listener.settimeout(0.2)
+
+    def stream(conn):
+        with conn:
+            try:
+                while True:
+                    protocol.send(conn, state.snapshot())
+                    time.sleep(every)
+            except OSError:
+                pass  # the window closed
+
+    def accept():
+        while listener.fileno() != -1:  # -1 once the daemon closed it: it is stopping
+            try:
+                conn, _ = listener.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                return
+            conn.settimeout(None)
+            # ponytail: one thread per window; there is only ever one or two
+            threading.Thread(target=stream, args=(conn,), daemon=True).start()
+
+    threading.Thread(target=accept, daemon=True).start()
+    return listener
 
 
 def _serve_one(engine, conn, idle_seconds, idle_minutes):

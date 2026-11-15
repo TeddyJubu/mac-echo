@@ -5,9 +5,12 @@ speech into text for you and speaks your text aloud. Everything runs locally.
 
 ## The loop
 
+0. Open the window, so the user can see when you are listening and when you are speaking:
+   `macecho show`. It returns at once; if it fails (exit 1), carry on without it.
 1. Greet the user and listen, in one call:
    `reply=$(macecho converse "I'm listening. What should we work on?")`
-2. Act on `$reply` exactly as if the user had typed it.
+2. Act on `$reply` exactly as if the user had typed it. If that will take more than a few
+   seconds, say so first, so the user isn't left in silence: `macecho say "On it."`
 3. Answer and listen again, in one call:
    `reply=$(macecho converse "Done, the tests pass. What next?")`
 4. When the user says goodbye or asks you to stop listening:
