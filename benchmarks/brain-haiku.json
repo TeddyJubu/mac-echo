@@ -1,257 +1,284 @@
 {
   "model": "claude-haiku-5-5",
   "metrics": {
-    "accuracy": 0.975,
-    "chat_sent_to_claude": 1,
+    "accuracy": 1.0,
+    "chat_sent_to_claude": 0,
     "claude_kept_as_chat": 0,
-    "first_sound_p50_s": 1.355,
-    "first_sound_p95_s": 1.768
+    "first_sound_p50_s": 1.345,
+    "first_sound_p95_s": 1.933,
+    "dialogues_wrong": 0
   },
   "budget": {
     "accuracy": 0.95,
     "first_sound_p50_s": 0.8,
-    "first_sound_p95_s": 1.5
+    "first_sound_p95_s": 1.5,
+    "dialogues_wrong": 0
   },
   "rows": [
     {
       "text": "Add a dark mode toggle to the settings page.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.573
+      "first_s": 1.581
     },
     {
       "text": "Fix the failing test.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.348
+      "first_s": 1.364
     },
     {
       "text": "Commit my changes and push them.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.486
+      "first_s": 1.472
     },
     {
       "text": "Rename the function load to load_model everywhere.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.67
+      "first_s": 1.682
     },
     {
       "text": "Write a README for this project.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.563
+      "first_s": 1.933
     },
     {
       "text": "Run the benchmark again.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.361
+      "first_s": 1.298
     },
     {
       "text": "Delete the unused imports in the agent file.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.466
+      "first_s": 1.458
     },
     {
       "text": "Update the version number to 0.3.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.495
+      "first_s": 1.508
     },
     {
       "text": "Can you make the button blue?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.122
+      "first_s": 1.427
     },
     {
       "text": "Could you add a test for the delegate?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.496
+      "first_s": 1.486
     },
     {
       "text": "I think the build is broken.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.173
+      "first_s": 1.379
     },
     {
       "text": "The orb is lagging behind the voice, can you look into it?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.504
+      "first_s": 1.931
     },
     {
       "text": "Why are the tests failing?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.453
+      "first_s": 1.337
     },
     {
       "text": "What does the delegate module do?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.501
+      "first_s": 1.857
     },
     {
       "text": "Which branch am I on?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.449
+      "first_s": 1.173
     },
     {
       "text": "How many TODOs are left in the code?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.571
+      "first_s": 1.593
     },
     {
       "text": "Remind me what we changed today.",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.572
+      "first_s": 1.517
     },
     {
       "text": "Is the daemon running?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.771
+      "first_s": 1.97
     },
     {
       "text": "What's in my downloads folder?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.546
+      "first_s": 1.562
     },
     {
       "text": "Did the last commit get pushed?",
       "expected": "CLAUDE",
       "got": "CLAUDE",
-      "first_s": 1.477
+      "first_s": 1.651
     },
     {
       "text": "What's the capital of Japan?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 0.996
+      "first_s": 0.86
     },
     {
       "text": "What's seven times eight?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.04
+      "first_s": 1.078
     },
     {
       "text": "Explain what a hash map is.",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 0.922
+      "first_s": 0.876
     },
     {
       "text": "How does async work in Python?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.196
+      "first_s": 0.941
     },
     {
       "text": "What's the difference between a list and a tuple?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 0.942
+      "first_s": 0.989
     },
     {
       "text": "Who wrote Pride and Prejudice?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.365
+      "first_s": 1.043
     },
     {
       "text": "How do I say thank you in Japanese?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.158
+      "first_s": 1.092
     },
     {
       "text": "What's a good name for a cat?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 0.934
+      "first_s": 1.036
     },
     {
       "text": "Hi, how are you?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 0.903
+      "first_s": 0.708
     },
     {
       "text": "Tell me a joke.",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.039
+      "first_s": 1.062
     },
     {
       "text": "Thanks, that's all for now.",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.192
+      "first_s": 1.012
     },
     {
       "text": "Good morning!",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 0.792
+      "first_s": 0.99
     },
     {
       "text": "You sound great today.",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.068
+      "first_s": 1.158
     },
     {
       "text": "I talked to Claude yesterday.",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.033
+      "first_s": 0.884
     },
     {
       "text": "Do you think tabs or spaces are better?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.718
+      "first_s": 0.944
     },
     {
       "text": "What can you do?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 0.956
+      "first_s": 1.646
     },
     {
       "text": "Can you tell me a fun fact?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.004
+      "first_s": 1.352
     },
     {
       "text": "Is Python faster than JavaScript?",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.174
+      "first_s": 1.564
     },
     {
       "text": "What should I work on next?",
       "expected": "CHAT",
-      "got": "CLAUDE",
-      "first_s": 1.933
+      "got": "CHAT",
+      "first_s": 1.059
     },
     {
       "text": "Make it shorter next time.",
       "expected": "CHAT",
       "got": "CHAT",
-      "first_s": 1.171
+      "first_s": 1.048
+    }
+  ],
+  "dialogues": [
+    {
+      "dialogue": [
+        "My story about a cat.",
+        "Make it up."
+      ],
+      "expected": "CHAT",
+      "got": "CHAT"
+    },
+    {
+      "dialogue": [
+        "Find my cat story in the project folder.",
+        "No, stop that."
+      ],
+      "expected": "STOP",
+      "got": "STOP"
+    },
+    {
+      "dialogue": [
+        "Write me a short poem about the sea."
+      ],
+      "expected": "CHAT",
+      "got": "CHAT"
     }
   ]
 }

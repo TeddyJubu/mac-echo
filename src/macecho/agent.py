@@ -15,7 +15,7 @@ import numpy as np
 import collections
 
 import contextlib
-from macecho.brain import Task
+from macecho.brain import Stop, Task
 from macecho.delegate import Delegate
 from macecho.vad.vad import VadProcessor
 from macecho.vad.interface import VadState
@@ -490,6 +490,8 @@ class Agent:
         async for item in items:
             if isinstance(item, Task):
                 self._start_task(item)
+            elif isinstance(item, Stop):
+                self._stop_task(item.session)
             else:
                 print(f"🗣  {item}", flush=True)
                 await self._speak(item, since)
@@ -523,6 +525,13 @@ class Agent:
         job = asyncio.create_task(self._run_task(self.delegates[task.session], task))
         self.background.add(job)
         job.add_done_callback(self.background.discard)
+        job.session = task.session
+
+    def _stop_task(self, session: str):
+        """The user said no: Claude is killed (Delegate.run's cancel path) and no report follows."""
+        for job in [j for j in self.background if getattr(j, "session", None) == session]:
+            print(f"🤖 {session}: stopped by the user")
+            job.cancel()
 
     async def _run_task(self, delegate, task: Task):
         print(f"🤖 {task.session}: {task.task}")

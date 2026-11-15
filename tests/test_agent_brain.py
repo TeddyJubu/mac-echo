@@ -5,7 +5,7 @@ import pytest
 
 from macecho import agent as agent_module
 from macecho.agent import CANT_THINK, Agent
-from macecho.brain import Task
+from macecho.brain import Stop, Task
 from macecho.delegate import Result
 
 
@@ -133,3 +133,30 @@ def test_no_acknowledgement_when_it_says_none(monkeypatch):
         return agent
 
     assert asyncio.run(go()).speech.said == ["On it."]
+
+
+class SlowDelegate:
+    async def run(self, request):
+        await asyncio.sleep(10)
+        return Result(True, "Found nothing.", "Found nothing.")
+
+
+def test_stopping_a_task_cancels_claude_and_its_report_never_comes():
+    async def go():
+        agent = make_agent()
+        agent.delegates["cat-story"] = SlowDelegate()
+        agent._start_task(Task("tu_1", "Find the cat story.", "cat-story"))
+        job = next(iter(agent.background))
+        await asyncio.sleep(0)
+
+        async def no():
+            yield Stop("tu_2", "cat-story")
+            yield "Okay, stopping it."
+        await agent._speak_all(no())
+        await asyncio.wait({job}, timeout=2)
+        return agent, job
+
+    agent, job = asyncio.run(go())
+    assert job.cancelled()
+    assert agent.brain.reports == []  # nothing about the search after the user said no
+    assert agent.speech.said == ["Okay, stopping it."]

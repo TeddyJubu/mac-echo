@@ -1,7 +1,7 @@
 import asyncio
 from types import SimpleNamespace as NS
 
-from macecho.brain import MODEL, Brain, Task
+from macecho.brain import MODEL, Brain, Stop, Task
 
 
 class FakeStream:
@@ -60,7 +60,7 @@ def test_sentences_come_out_as_soon_as_they_end():
     sent = client.calls[0]
     assert sent["model"] == MODEL and sent["thinking"] == {"type": "disabled"}
     assert sent["messages"] == [{"role": "user", "content": "Capital of Japan?"}]
-    assert [t["name"] for t in sent["tools"]] == ["start_task"]
+    assert [t["name"] for t in sent["tools"]] == ["start_task", "stop_task"]
 
 
 def test_a_task_starts_before_the_last_words_are_spoken():
@@ -99,3 +99,15 @@ def test_a_blank_base_url_in_the_environment_falls_back_to_anthropic(monkeypatch
     monkeypatch.setenv("ANTHROPIC_BASE_URL", "")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
     assert str(Brain().client.base_url).startswith("https://api.anthropic.com")
+
+
+def stop(session, id="tu_9"):
+    return NS(type="tool_use", id=id, name="stop_task", input={"session": session})
+
+
+def test_no_stops_the_work_instead_of_only_saying_so():
+    client = FakeClient((["Okay, stopping it."], [text("Okay, stopping it."), stop("cat-story")]))
+    brain = Brain(client)
+    assert collect(brain.reply("No.")) == [Stop("tu_9", "cat-story"), "Okay, stopping it."]
+    assert brain.history[-1]["content"][0]["tool_use_id"] == "tu_9"  # answered, as the API requires
+    assert [t["name"] for t in client.calls[0]["tools"]] == ["start_task", "stop_task"]
