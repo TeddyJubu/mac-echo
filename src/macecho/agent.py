@@ -239,6 +239,13 @@ class Agent:
 
     def _open_voice_io(self):
         """This session's echo-cancelling audio, or None to use sounddevice without it."""
+        output = device.sd.query_devices(kind="output")["name"]
+        # Apple's voice processing moves the input to the output's own device: with wired
+        # headphones that's the headphone jack, so the Mac's mic went unheard. Headphones can't
+        # echo anyway. ponytail: matched by name; macOS calls the jack "External Headphones".
+        if "headphones" in output.lower():
+            print(f"Echo cancellation off for this session: replies go to {output}")
+            return None
         try:
             from macecho.device.voice_io import VoiceIO
             io = VoiceIO(self.config.audio_recording.sample_rate, self.config.audio_player.sample_rate)

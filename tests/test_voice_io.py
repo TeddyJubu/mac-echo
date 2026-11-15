@@ -36,3 +36,21 @@ def test_speaker_buffer_holds_the_pcm_as_float():
     buffer = io.speaker_buffer(pcm.tobytes())
     assert buffer.frameLength() == 4
     assert np.allclose(np.frombuffer(buffer.floatChannelData()[0].as_buffer(4), np.float32), pcm / 32768.0)
+
+
+def test_headphones_skip_echo_cancellation_so_the_mac_mic_stays_the_input(monkeypatch):
+    # Apple's voice processing moves the input to the output's own device: with wired headphones
+    # that's the headphone jack, which heard nothing. Headphones can't echo, so it isn't needed.
+    from macecho import agent as agent_module
+    from macecho.device import device
+
+    agent = object.__new__(agent_module.Agent)
+    opened = []
+    monkeypatch.setattr("macecho.device.voice_io.VoiceIO", lambda *a: opened.append(a) or "voice io")
+    agent.config = agent_module.MacEchoConfig()
+
+    monkeypatch.setattr(device.sd, "query_devices", lambda kind=None: {"name": "External Headphones"})
+    assert agent._open_voice_io() is None and opened == []
+
+    monkeypatch.setattr(device.sd, "query_devices", lambda kind=None: {"name": "MacBook Air Speakers"})
+    assert agent._open_voice_io() == "voice io"  # speakers: echo cancellation stays on
