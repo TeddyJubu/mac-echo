@@ -165,3 +165,72 @@ def test_each_session_rereads_the_audio_devices_before_opening_any_stream(monkey
     a.audio_player_queue_iterator, a.cleanup = None, cleanup
     asyncio.run(a.start())
     assert order[0] == "refresh" and set(order) == {"refresh", "voice_io", "play", "record"}
+
+
+# --- ViewerApp: the window drawing Claude Code's voice mode from the daemon's live.sock ---
+
+def make_viewer(live=None):
+    viewer, pushed = object.__new__(menubar.ViewerApp), []  # skip __init__: no Cocoa
+    viewer.live, viewer.window = live, types.SimpleNamespace(isVisible=lambda: True)
+    viewer.page = types.SimpleNamespace(evaluateJavaScript_completionHandler_=lambda js, _: pushed.append(js))
+    return viewer, pushed
+
+
+def test_viewer_draws_the_daemon_snapshot_and_rests_without_one():
+    snapshot = {"state": "replying", "mic": 0.1, "speaker": 0.8, "bands": [0.5] * menubar.ORB_BARS}
+    viewer, pushed = make_viewer(snapshot)
+    viewer._push_orb()
+    viewer._push_info()
+    assert eval(pushed[0].removeprefix("window.macecho?.")) == ("replying", 0.1, 0.8, [0.5] * menubar.ORB_BARS)
+    info = json.loads(pushed[1].removeprefix("window.macechoInfo?.(").removesuffix(")"))
+    assert info["viewer"] and info["connected"] and info["models"] == []  # no model switch shown
+
+    viewer.live = None  # the daemon stopped
+    viewer._push_orb()
+    viewer._push_info()
+    assert eval(pushed[2].removeprefix("window.macecho?."))[:3] == ("off", 0.0, 0.0)
+    assert not json.loads(pushed[3].removeprefix("window.macechoInfo?.(").removesuffix(")"))["connected"]
+    viewer.on_page("toggle")  # Return in the page: no controls, nothing happens
+
+
+def test_viewer_follows_the_daemon_through_a_restart(monkeypatch, tmp_path):
+    import socket
+    import tempfile
+    from macecho.daemon import protocol
+
+    monkeypatch.setenv("MACECHO_RUNTIME_DIR", tempfile.mkdtemp(prefix="me"))  # short: socket path limit
+
+    def daemon(state):
+        """A one-window live.sock that sends `state` until told to stop."""
+        server = socket.socket(socket.AF_UNIX)
+        protocol.live_path().unlink(missing_ok=True)
+        server.bind(str(protocol.live_path()))
+        server.listen()
+        stop = threading.Event()
+
+        def serve():
+            conn, _ = server.accept()
+            with conn:
+                while not stop.is_set():
+                    protocol.send(conn, {"state": state, "mic": 0.0, "speaker": 0.0, "bands": []})
+                    time.sleep(0.02)
+            server.close()
+            protocol.live_path().unlink(missing_ok=True)
+
+        threading.Thread(target=serve, daemon=True).start()
+        return stop
+
+    def wait_for(viewer, state):
+        deadline = time.time() + 3
+        while viewer.state() != state or (state == "off" and viewer.live is not None):
+            assert time.time() < deadline, f"viewer never showed {state!r}"
+            time.sleep(0.01)
+
+    viewer, _ = make_viewer()
+    threading.Thread(target=viewer._read_live, kwargs={"retry": 0.05}, daemon=True).start()
+    first = daemon("listening")
+    wait_for(viewer, "listening")
+    first.set()                      # the daemon idles out
+    wait_for(viewer, "off")
+    daemon("replying")               # Claude Code starts a new one
+    wait_for(viewer, "replying")

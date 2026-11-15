@@ -9,11 +9,15 @@ The window is one web page (ui/, built to src/macecho/ui/index.html by scripts/b
 in a web view: the orb, frequency bars, state, the Start/Stop control and the model switch. The
 0.3 s timer sends it the app's state, a second 20 Hz timer mic and speaker loudness, and the
 page's clicks come back through PageBridge.
+
+With --view (ViewerApp) the window only draws what the macecho daemon is doing: Claude Code's
+voice mode. It loads no model and opens no mic; the daemon owns both and streams its state.
 """
 
 import asyncio
 import gc
 import json
+import socket
 import subprocess
 import sys
 import threading
@@ -27,6 +31,7 @@ from Foundation import NSObject
 from WebKit import WKWebsiteDataStore, WKWebView, WKWebViewConfiguration
 
 from macecho.config import MacEchoConfig
+from macecho.daemon import protocol
 from macecho.device.device import bands, level
 
 MODELS = {
@@ -178,9 +183,12 @@ class MacEchoApp(rumps.App):
             # Each bar shows whoever is louder in that band: you, or the reply.
             bars = map(max, bands(heard, self.agent.audio_recorder.samplerate, ORB_BARS),
                        bands(said, self.agent.audio_player.samplerate, ORB_BARS))
+        self._draw(self.state(), mic, speaker, bars)
+
+    def _draw(self, state: str, mic: float, speaker: float, bars):
         # window.macecho is defined by ui/src/main.tsx; "?." covers the moment before it loads.
         self.page.evaluateJavaScript_completionHandler_(
-            f"window.macecho?.({self.state()!r}, {mic:.3f}, {speaker:.3f}, "
+            f"window.macecho?.({state!r}, {mic:.3f}, {speaker:.3f}, "
             f"[{', '.join(f'{bar:.2f}' for bar in bars)}])", None)
 
     def _idle_tick(self):
@@ -271,6 +279,66 @@ class MacEchoApp(rumps.App):
         rumps.quit_application()
 
 
+class ViewerApp(MacEchoApp):
+    """Only the window, drawing what the macecho daemon streams on live.sock.
+
+    Claude Code talks through the daemon (`macecho converse`), which holds the only model and the
+    mic. Loading a second model here would cost ~2 GB and fight it for the mic, so this reads the
+    daemon's state instead. It has no controls: Claude Code decides when to listen and speak.
+    """
+
+    def __init__(self):
+        rumps.App.__init__(self, "MacEcho", title=ICONS["off"], quit_button=None)
+        self.live = None  # the daemon's newest snapshot; None while no daemon is running
+        self.menu = [
+            rumps.MenuItem("Open Log", callback=lambda _: subprocess.run(["open", str(protocol.log_path())])),
+            rumps.MenuItem("Quit MacEcho", callback=lambda _: rumps.quit_application()),
+        ]
+        self._build_window()
+        self.window.makeKeyAndOrderFront_(None)
+        threading.Thread(target=self._read_live, daemon=True).start()
+        rumps.Timer(self.refresh, 0.3).start()
+        rumps.Timer(lambda _: self._push_orb(), 0.05).start()
+
+    def _read_live(self, retry: float = 0.5):
+        """Keep self.live current; reconnect whenever a daemon (re)starts. Runs on its own thread."""
+        while True:
+            try:
+                with socket.socket(socket.AF_UNIX) as sock:
+                    sock.connect(str(protocol.live_path()))
+                    for line in sock.makefile():
+                        self.live = json.loads(line)
+            except (OSError, ValueError):
+                pass  # no daemon yet, or it stopped mid-line
+            self.live = None
+            time.sleep(retry)
+
+    def state(self) -> str:
+        live = self.live  # read once: the reader thread may replace it meanwhile
+        return live["state"] if live else "off"
+
+    def refresh(self, _):
+        self.title = ICONS.get(self.state(), ICONS["off"])
+        self._push_info()
+
+    def _push_info(self):
+        if self.window.isVisible():
+            info = {"error": None, "running": False, "pending": False, "busy": False, "models": [],
+                    "model": None, "viewer": True, "connected": self.live is not None}
+            self.page.evaluateJavaScript_completionHandler_(f"window.macechoInfo?.({json.dumps(info)})", None)
+
+    def _push_orb(self):
+        live = self.live
+        if self.window.isVisible():
+            if live:
+                self._draw(live["state"], live["mic"], live["speaker"], live["bands"])
+            else:
+                self._draw("off", 0.0, 0.0, [0.0] * ORB_BARS)
+
+    def on_page(self, message: str):
+        pass  # no controls in the viewer; Return in the page does nothing
+
+
 def main():
     nsapp = NSApplication.sharedApplication()
     nsapp.setActivationPolicy_(0)  # regular app: Dock icon and key windows, also under python -m
@@ -280,7 +348,7 @@ def main():
     app_menu.addItemWithTitle_action_keyEquivalent_("Quit MacEcho", "terminate:", "q")
     menu.addItemWithTitle_action_keyEquivalent_("", None, "").setSubmenu_(app_menu)
     nsapp.setMainMenu_(menu)
-    MacEchoApp().run()
+    (ViewerApp if "--view" in sys.argv else MacEchoApp)().run()
 
 
 if __name__ == "__main__":

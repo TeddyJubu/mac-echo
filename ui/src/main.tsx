@@ -18,6 +18,8 @@ type Info = {
   busy: boolean // a model is loading; switching is ignored meanwhile
   models: string[]
   model: string | null // null: a model set in .env that isn't one of `models`
+  viewer?: boolean // menubar --view: only showing Claude Code's voice mode, so no controls
+  connected?: boolean // viewer: a macecho daemon is running
 }
 
 declare global {
@@ -80,7 +82,19 @@ const useInfo = () => useSyncExternalStore(subscribe, () => info)
 const send = (message: string) => window.webkit?.messageHandlers.macecho.postMessage(message)
 
 // What the window says in each state: a headline and the line under it.
-function describe(current: string, { error, model }: Info) {
+function describe(current: string, { error, model, viewer, connected }: Info) {
+  if (viewer) {
+    switch (current) {
+      case "listening":
+        return { title: "Listening", detail: "Claude Code is waiting for you" }
+      case "replying":
+        return { title: "Speaking", detail: "Claude Code is answering" }
+      default:
+        return connected
+          ? { title: "Voice mode", detail: "Claude Code speaks when it has something to say" }
+          : { title: "Voice mode is off", detail: "Say “voice mode” in Claude Code to start" }
+    }
+  }
   if (current === "error" && error) {
     const cut = error.indexOf(": ") // "Model failed to load: why" → headline, then the why
     return cut < 0
@@ -158,7 +172,8 @@ function Status() {
 
 function Primary() {
   const current = useAppState()
-  const { running, pending, busy } = useInfo()
+  const { running, pending, busy, viewer } = useInfo()
+  if (viewer) return <div className="h-11" /> // Claude Code decides when to listen, not a button
   const [label, icon, strong] = running
     ? ["Stop", <StopIcon />, false]
     : pending && busy
